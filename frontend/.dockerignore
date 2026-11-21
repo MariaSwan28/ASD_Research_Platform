@@ -1,0 +1,12 @@
+node_modules
+build
+__pycache__
+**/__pycache__
+*.pyc
+**/*.pyc
+.env
+.env.*
+data
+files
+dataset
+logs

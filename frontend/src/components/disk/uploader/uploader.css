@@ -1,0 +1,51 @@
+.uploader {
+  height: 300px;
+  width: 300px;
+  position: fixed;
+  background: #067d985e;
+  bottom: 0;
+  right: 0;
+  padding: 20px;
+  border-radius: 12px;
+  overflow-y: auto;
+}
+.uploader__header {
+  display: flex;
+  justify-content: space-between;
+}
+.uploader__title {
+  color: #125DD6;
+  font-size: 1.2rem;
+}
+.uploader__close {
+  padding: 3px;
+}
+.upload-file {
+  background-color: #f7faff;
+  border-radius: 8px;
+  margin: 5px 0;
+  padding: 5px 10px;
+}
+.upload-file__header {
+  display: flex;
+  justify-content: space-between;
+}
+.upload-file__progress-bar {
+  height: 1rem;
+  border-radius: 8px;
+  background-color: #566885;
+  display: flex;
+  margin: 3px 0;
+}
+.upload-file__upload-bar {
+  background-color: green;
+  width: 0;
+  border-radius: 8px;
+}
+.upload-file__percent {
+  color: #000712;
+  left: 50%;
+  position: absolute;
+}
+
+.uploader{background:#fff;border:1px solid var(--line);box-shadow:0 12px 40px #10264630;border-radius:16px;z-index:100;right:24px;bottom:24px}.uploader__title{color:var(--ink);font-weight:800}.upload-file{background:#f5f8fe;border:1px solid var(--line)}.upload-file__upload-bar{background:var(--blue)}

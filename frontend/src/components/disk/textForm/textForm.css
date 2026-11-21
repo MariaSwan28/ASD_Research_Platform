@@ -1,0 +1,28 @@
+/* Shared family palette; dialog styles kept independent of old blue popup. */
+.text-form { position:fixed; inset:0; z-index:2100; display:grid; place-items:center; padding:16px; }
+.text-form__background { position:absolute; inset:0; background:rgba(35,49,51,.48); }
+.text-form__form { position:relative; z-index:1; width:min(680px,100%); max-height:92vh; overflow-y:auto; background:#fffdf9; border-radius:24px; border:1px solid #e7e5dd; box-shadow:0 20px 65px rgba(38,56,52,.19); }
+.text-form__container { padding:32px; }
+.text-form__eyebrow { display:block; font-weight:700; font-size:11px; letter-spacing:1px; color:#9a796b; margin-bottom:8px; }
+.text-form-header { font-size:25px; color:#344d56; margin:0 42px 6px 0; }
+.text-form__hint { font-size:14px; line-height:1.5; color:#657984; margin:0 0 24px; }
+.text-form__name, .text-form__content { display:flex; flex-direction:column; gap:8px; margin-bottom:18px; }
+.text-form__name label,.text-form__content label { font-weight:700; font-size:14px; color:#344d56; }
+.text-form__name input,.text-form__content textarea { width:100%; box-sizing:border-box; padding:12px 14px; border:1px solid #dadfd7; border-radius:12px; background:white; color:#293c40; font:inherit; }
+.text-form__content textarea { resize:vertical; min-height:165px; }
+.text-form__name input:focus,.text-form__content textarea:focus { outline:2px solid #99c7b3; outline-offset:1px; }
+.text-form__content-header { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:12px; }
+.text-form__mic { border:1px solid #a5c9b8; color:#386b5b; border-radius:11px; background:#ebf7f0; padding:9px 13px; font-weight:700; cursor:pointer; }
+.text-form__mic--active { background:#ffe4df; border-color:#e2a198; color:#a43f3c; }
+.text-form__mic:disabled { opacity:.55; cursor:not-allowed; }
+.text-form__counter { text-align:right; font-size:12px; color:#75868a; }
+.text-form__speech-note { font-size:12px; color:#687980; line-height:1.5; margin:8px 0; }
+.text-form__speech-error { font-size:13px; color:#a43f3c; }
+.text-form__listening { font-size:13px; color:#a43f3c; font-weight:700; }
+.text-form__button-close { position:absolute; top:16px; right:18px; width:36px; height:36px; border:0; border-radius:11px; background:#f0eafa; cursor:pointer; color:#514966; }
+.text-form__actions { display:flex; justify-content:flex-end; gap:12px; margin-top:24px; }
+.text-form__cancel,.text-form__button-create { border:0; border-radius:12px; padding:12px 18px; cursor:pointer; font-weight:700; }
+.text-form__cancel { background:#f2f1ed; color:#53676d; }
+.text-form__button-create { background:#648f7d; color:white; }
+.text-form__button-create:disabled { opacity:.5; cursor:not-allowed; }
+@media(max-width:560px) {.text-form__container{padding:22px 18px}.text-form__content-header{align-items:flex-start}.text-form__actions{flex-direction:column-reverse}.text-form__actions button{width:100%}}

@@ -1,0 +1,13 @@
+{$SITE_HOST} {
+    encode gzip
+    header {
+        X-Content-Type-Options nosniff
+        Referrer-Policy same-origin
+        -Server
+    }
+    reverse_proxy frontend:80 {
+        transport http {
+            response_header_timeout 1300s
+        }
+    }
+}

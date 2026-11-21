@@ -1,0 +1,104 @@
+services:
+  gateway:
+    image: caddy:2-alpine
+    ports: ["80:80", "443:443", "443:443/udp"]
+    environment:
+      SITE_HOST: ${SITE_HOST:?Set SITE_HOST to your domain}
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      frontend:
+        condition: service_healthy
+    restart: unless-stopped
+    networks: [app-network]
+    logging:
+      driver: json-file
+      options: {max-size: 10m, max-file: '3'}
+  frontend:
+    build: ./frontend
+    depends_on:
+      bff:
+        condition: service_healthy
+    restart: unless-stopped
+    networks: [app-network]
+    healthcheck:
+      test: [CMD, wget, -q, -O, /dev/null, http://127.0.0.1/]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+    logging: &logging
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: '3'
+  bff:
+    build: ./bff
+    environment:
+      NODE_ENV: production
+      SERVER_PORT: '5000'
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:?Run python scripts/setup_env.py}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:?Run python scripts/setup_env.py}
+      ML_INTERNAL_TOKEN: ${ML_INTERNAL_TOKEN:?Run python scripts/setup_env.py}
+      ALLOWED_ORIGINS: https://${SITE_HOST:?Set SITE_HOST to your domain}
+      COOKIE_SECURE: 'true'
+      ALLOW_REGISTRATION: 'false'
+      SUPERUSER_LOGIN: ${SUPERUSER_LOGIN:-}
+      SUPREUSER_PASS: ${SUPREUSER_PASS:-}
+      FILE_PATH: /app/files
+      STATIC_PATH: /app/static
+      DB_PATH: /app/data/dev.sqlite
+      ML_API_URL: http://ml-service:5010
+      DATASET_DIR: /app/dataset
+    volumes:
+      - shared-files:/app/files
+      - bff-data:/app/data
+      - shared-dataset:/app/dataset
+      - bff-static:/app/static
+    depends_on:
+      ml-service:
+        condition: service_healthy
+    restart: unless-stopped
+    networks: [app-network]
+    healthcheck:
+      test: [CMD, node, -e, "fetch('http://127.0.0.1:5000/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    logging: *logging
+  ml-service:
+    build: ./ml-service
+    environment:
+      APP_ENV: production
+      ML_DIR_PATH: /app
+      ML_INTERNAL_TOKEN: ${ML_INTERNAL_TOKEN:?Run python scripts/setup_env.py}
+      ENABLE_TRUSTED_TEXT_PICKLES: '1'
+      VIDEO_PYTHON: /opt/video-env/bin/python
+      VIDEO_CLASSIFIER: ${VIDEO_CLASSIFIER:-random_forest}
+      OMP_NUM_THREADS: '1'
+      OPENBLAS_NUM_THREADS: '1'
+      MPLCONFIGDIR: /tmp/matplotlib
+    volumes:
+      - shared-dataset:/app/dataset
+      - shared-files:/app/files:ro
+    restart: unless-stopped
+    networks: [app-network]
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:5010/health', timeout=4)"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+    logging: *logging
+networks:
+  app-network:
+    driver: bridge
+volumes:
+  shared-files:
+  shared-dataset:
+  bff-data:
+  bff-static:
+  caddy-data:
+  caddy-config:

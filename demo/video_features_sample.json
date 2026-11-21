@@ -1,0 +1,126 @@
+{
+  "video_metadata": {
+    "video_id": "norm1",
+    "duration_sec": 13.8,
+    "fps": 30.0,
+    "resolution": [
+      352,
+      640
+    ],
+    "total_frames": 414,
+    "recording_date": "2025-12-30T23:02:58.986447"
+  },
+  "aggregated_features": {
+    "total_abrupt_movements": 22,
+    "movements_per_minute": 95.65217391304347,
+    "symmetry_metrics": {
+      "левое_запястье_vs_правое_запястье": 0.6179377808298875,
+      "левое_колено_vs_правое_колено": 0.9037159118993537,
+      "левая_лодыжка_vs_правая_лодыжка": 0.8500978260178621
+    },
+    "frequency_features": {
+      "левое_запястье": {
+        "dominant_frequency_hz": 1.4527845036319613,
+        "frequency_range_hz": [
+          0.0,
+          12.058111380145279
+        ]
+      },
+      "правое_запястье": {
+        "dominant_frequency_hz": 0.5084745762711865,
+        "frequency_range_hz": [
+          0.0,
+          12.784503631961261
+        ]
+      },
+      "левое_колено": {
+        "dominant_frequency_hz": 6.101694915254238,
+        "frequency_range_hz": [
+          0.0,
+          11.549636803874094
+        ]
+      },
+      "правое_колено": {
+        "dominant_frequency_hz": 4.2857142857142865,
+        "frequency_range_hz": [
+          0.0,
+          12.85714285714286
+        ]
+      },
+      "левая_лодыжка": {
+        "dominant_frequency_hz": 6.101694915254238,
+        "frequency_range_hz": [
+          0.0,
+          11.476997578692496
+        ]
+      },
+      "правая_лодыжка": {
+        "dominant_frequency_hz": 0.14527845036319614,
+        "frequency_range_hz": [
+          0.0,
+          13.147699757869251
+        ]
+      }
+    },
+    "amplitude_features": {
+      "левое_запястье": {
+        "mean_speed": 21.49122720437246,
+        "std_speed": 20.825654555950244,
+        "max_speed": 166.57846069335938,
+        "speed_variance": 433.70788768377116
+      },
+      "правое_запястье": {
+        "mean_speed": 49.82814396878132,
+        "std_speed": 68.27612753704571,
+        "max_speed": 436.1582946777344,
+        "speed_variance": 4661.629591454932
+      },
+      "левое_колено": {
+        "mean_speed": 139.39239048265082,
+        "std_speed": 119.59920716059975,
+        "max_speed": 810.6727905273438,
+        "speed_variance": 14303.970353444054
+      },
+      "правое_колено": {
+        "mean_speed": 161.1676625835982,
+        "std_speed": 190.13492092128135,
+        "max_speed": 1248.3052978515625,
+        "speed_variance": 36151.288153741916
+      },
+      "левая_лодыжка": {
+        "mean_speed": 131.12248652668322,
+        "std_speed": 135.37587004546103,
+        "max_speed": 825.450927734375,
+        "speed_variance": 18326.626190565552
+      },
+      "правая_лодыжка": {
+        "mean_speed": 125.19911691259601,
+        "std_speed": 216.16565337029274,
+        "max_speed": 1634.2857666015625,
+        "speed_variance": 46727.589697005555
+      }
+    },
+    "movement_frequency": {
+      "левое_запястье": 8.737864077669903,
+      "правое_запястье": 8.737864077669903,
+      "левое_колено": 13.106796116504853,
+      "правое_колено": 21.844660194174754,
+      "левая_лодыжка": 17.475728155339805,
+      "правая_лодыжка": 26.213592233009706
+    }
+  },
+  "preliminary_annotation": {
+    "preliminary_label": 0,
+    "risk_score": 0,
+    "risk_factors": []
+  },
+  "quality_metrics": {
+    "detection_rate": 1.0,
+    "avg_keypoint_confidence": 0.5746417045593262,
+    "missing_frames": 0
+  },
+  "time_series_summary": {
+    "sampling_rate_hz": 30.0,
+    "total_samples": 413
+  }
+}

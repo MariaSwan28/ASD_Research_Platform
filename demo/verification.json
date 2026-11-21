@@ -1,0 +1,46 @@
+{
+  "release": "stage15",
+  "date": "2026-11-15",
+  "python_runtime": "3.10.22",
+  "node_runtime": "v24.22.1",
+  "tests": {
+    "python_passed": 27,
+    "node_passed": 6,
+    "react_passed": 13
+  },
+  "frontend_build": "passed_with_existing_warnings",
+  "real_artifacts": {
+    "text": "inference_passed",
+    "random_forest": "features_inference_passed",
+    "gradient_boosting": "features_inference_passed"
+  },
+  "third_adapter_proof": {
+    "before": [
+      "movement-pose-v1",
+      "parent-story-nb"
+    ],
+    "after": [
+      "audio-activity-v1",
+      "movement-pose-v1",
+      "parent-story-nb"
+    ],
+    "added_file": "core/ml_adapters/audio_activity.py",
+    "react_and_bff_unchanged": true
+  },
+  "http_smoke": {
+    "login": true,
+    "child": true,
+    "upload": true,
+    "text_analysis": true,
+    "history": true,
+    "third_adapter": true
+  },
+  "not_verified": [
+    "Docker image build and full compose start",
+    "Real video through YOLO end to end",
+    "Timeweb host, DNS and HTTPS",
+    "Docker volume backup/restore execution",
+    "Clinical/model accuracy",
+    "Visual browser QA"
+  ]
+}

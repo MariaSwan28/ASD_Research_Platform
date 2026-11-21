@@ -1,0 +1,17 @@
+.navbar{height:76px;background:#fff;border-bottom:1px solid var(--line);display:flex;align-items:center;width:100%;box-shadow:0 2px 18px rgba(31,67,120,.025)}.navbar>.container{display:flex;align-items:center;width:100%;gap:12px}.navbar__brand-icon{width:48px;height:48px;border-radius:14px;background:#eef4ff;display:flex;align-items:center;justify-content:center;flex-shrink:0}.navbar__logo{height:38px;width:38px;object-fit:contain}.navbar__header{font-size:21px;font-weight:800;letter-spacing:-.7px}.navbar__header a{color:var(--ink)}.navbar__brand-accent{color:var(--blue)}.navbar__login{margin-left:auto;background:#edf3ff;border:1px solid #dbe6fc;border-radius:12px;color:var(--blue);padding:10px 19px;font-weight:800;font-size:13px;cursor:pointer}.navbar__login:hover{background:#dfeafa}.navbar__avatar{width:40px;height:40px;border:2px solid #e6efff;border-radius:50%;object-fit:cover}.navbar__logout{margin-right:8px}.navbar__search{width:200px;margin-left:30px}@media(max-width:520px){.navbar__header{font-size:17px}.navbar__brand-icon{width:40px;height:40px}.navbar__logo{width:32px;height:32px}.navbar__login{padding:8px 12px}}
+
+/* Family navigation */
+.navbar{background:rgba(255,255,255,.94);border-bottom:1px solid #f0e6df;box-shadow:0 4px 20px rgba(76,91,94,.04)}
+.navbar__brand-icon{background:var(--mint);border-radius:17px}.navbar__brand-accent{color:#658c7e}
+.navbar__materials{margin-left:auto;display:inline-flex;align-items:center;white-space:nowrap;background:#edf7f1;border:1px solid #d7ebdf;border-radius:12px;padding:10px 14px;color:#406f61;font-weight:800;font-size:13px}
+.navbar__materials:hover,.navbar__materials--active{background:#dcf0e4;color:#315f50}
+.navbar__login{margin-left:0;background:#fff1e8;border-color:#f5e0d4;color:#93634e}.navbar__login:hover{background:#ffe6d8}
+.navbar__avatar{border:3px solid #e0eee6}.navbar__profile-link{display:flex;align-items:center;border-radius:50%;flex-shrink:0}.navbar__profile-link:hover{box-shadow:0 0 0 4px #e6f2ec}
+@media(max-width:580px){.navbar>.container{gap:6px}.navbar__materials{font-size:11px;padding:9px 10px}.navbar__login{font-size:11px;padding:9px 10px;margin-right:2px}.navbar__header{font-size:15px}.navbar__brand-icon{width:36px;height:36px}.navbar__avatar{width:35px;height:35px}}
+
+/* Stage 7: one clear home action (brand) + account + logout. */
+.navbar__logout{margin-left:auto}
+
+/* Stage 11: guests use the login/registration forms; no duplicate header login. */
+.navbar__account-actions { margin-left: auto; display: flex; align-items: center; gap: 12px; }
+.navbar__account-actions .navbar__logout { margin: 0; }

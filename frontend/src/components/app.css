@@ -1,0 +1,33 @@
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap');
+:root{--ink:#172942;--muted:#76869b;--blue:#3766d6;--line:#e4ebf3;--surface:#fff;--page:#f4f7fc;--shadow:0 12px 44px rgba(27,57,99,.06)}
+*{box-sizing:border-box}html{min-height:100%}body{margin:0;background:var(--page);font-family:'Manrope','Segoe UI',sans-serif;color:var(--ink);font-size:14px;font-weight:500}button,input,select,textarea{font:inherit}button{cursor:pointer}a{color:var(--blue);text-decoration:none}a:hover{color:#2348b2}#root{min-height:100vh}.app{min-height:100vh}.container{max-width:1240px;margin:0 auto;padding:0 24px}.wrap.container{padding-top:34px;padding-bottom:70px}h1,h2,h3,p{color:inherit}h1,h2,h3{font-weight:800}button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid #a3c4ff;outline-offset:2px}
+@media(max-width:640px){.container{padding-left:15px;padding-right:15px}.wrap.container{padding-top:20px}}
+
+/* Stage 3: единый визуальный язык существующих всплывающих окон. */
+.popup,.text-form,.video-modal-overlay,.analytics-modal-overlay{backdrop-filter:blur(4px)}
+.popup__content,.text-form__form,.video-modal-container{border-radius:22px!important;box-shadow:0 25px 85px rgba(20,35,68,.22)!important;border:1px solid #e7ebf4!important}
+.popup__title,.text-form-header,.video-modal-title{color:#283b5a!important;font-weight:800!important}
+.popup__close,.text-form__button-close,.video-modal-close{border-radius:10px!important}
+.popup__create,.text-form__button-create,.video-download-btn{background:#5369ca!important;color:white!important;border-radius:12px!important;border:0!important}
+.popup__create:hover,.text-form__button-create:hover,.video-download-btn:hover{background:#3f54ad!important}
+
+/* Дополнительная настройка аналитических окон без изменения выводов ML. */
+.modal-overlay,.video-modal-overlay{background:rgba(19,32,60,.58)!important;backdrop-filter:blur(4px)}
+.analytics-modal,.video-modal-container{background:#fff!important;border:1px solid #e5eaf5!important;border-radius:22px!important;box-shadow:0 28px 90px rgba(17,33,65,.22)!important}
+.analytics-modal .analytics-header h2,.video-modal-title{color:#243954!important;font-weight:800!important}
+.analytics-modal .analytics-section{background:#f8faff;border:1px solid #e6ebf4;border-radius:15px}
+.analytics-modal .close-button{border-radius:12px;background:#f0f4fa;color:#536783}
+.text-form__background{background:rgba(19,32,60,.58)!important;backdrop-filter:blur(4px)}
+.text-form__form{position:fixed!important;left:50%!important;top:50%!important;right:auto!important;transform:translate(-50%,-50%);width:min(calc(100vw - 32px),600px);max-height:90vh;overflow:auto;z-index:1200!important;padding:22px!important;box-sizing:border-box}
+.text-form__name{display:block!important}.text-form__name-input{width:100%!important;box-sizing:border-box}.text-form__name-input,.text-form__content-input{border:1px solid #dce3ef!important;border-radius:11px;padding:11px!important}.text-form__container{padding:16px!important}.text-form__button-create{display:block;margin:15px 0 0 auto!important;padding:11px 20px!important}.text-form__button-close{right:12px!important;top:12px!important}
+
+/* Stage 4: friendly family palette; calm and readable rather than clinical. */
+:root{--ink:#344358;--muted:#788799;--blue:#597ebc;--line:#e7e8ec;--surface:#fff;--page:#f9f8f5;--shadow:0 14px 34px rgba(69,82,100,.07);--peach:#ffebe0;--mint:#e2f6ef;--lavender:#efebff;--sun:#fff4d9}
+body{background:#f8f8f5;min-height:100vh}
+.app{position:relative}.app:before{content:none}
+a{color:#4c709e}a:hover{color:#30598d}button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible{outline:3px solid #88c7ac;outline-offset:3px}
+.popup__content,.text-form__form,.video-modal-container,.analytics-modal,.asd-modal{border-radius:24px!important;border:1px solid #f1e9e2!important;box-shadow:0 25px 80px rgba(55,70,80,.16)!important}
+.popup__create,.text-form__button-create,.video-download-btn{background:#668f81!important;color:white!important;border-radius:13px!important}
+.popup__create:hover,.text-form__button-create:hover,.video-download-btn:hover{background:#52786c!important}
+.analytics-modal .analytics-section{background:#fbf9f5;border-color:#ece7e0}
+@media(prefers-reduced-motion:reduce){*,*:before,*:after{scroll-behavior:auto!important;animation-duration:.01ms!important;transition-duration:.01ms!important}}

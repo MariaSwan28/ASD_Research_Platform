@@ -1,0 +1,13 @@
+Полный проект этапа 15 с сетевым исправлением Docker.
+
+Распакуйте архив во временную папку. Скопируйте СОДЕРЖИМОЕ полученной папки ASD_Research_Platform в существующую папку проекта с объединением папок и заменой файлов. Не удаляйте существующие папки перед копированием. Файл .env в архиве отсутствует: сохраните свой существующий .env. Не удаляйте Docker volumes.
+
+В ml-service должны находиться Dockerfile, requirements.txt, video-requirements.txt, server.py, core, config, models, nlp_artifacts, resources, workers.
+В bff должны находиться Dockerfile, package.json, package-lock.json, index.js, controllers, services и остальные исходники.
+
+Команды из существующей папки проекта:
+docker compose --env-file .env build ml-service bff
+docker compose --env-file .env up -d
+docker compose --env-file .env ps
+
+Проверено: ZIP, полнота относительно этапа 15 и наличие обоих requirements-файлов. Docker-сборка здесь не выполнена. Полный архив отличается от этапа 15 только двумя Dockerfile и этой инструкцией.
