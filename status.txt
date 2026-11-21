@@ -1,4 +1,0 @@
-NAME                                 IMAGE                              COMMAND                  SERVICE      CREATED          STATUS                    PORTS
-asd_research_platform-bff-1          asd_research_platform-bff          "docker-entrypoint.s…"   bff          18 minutes ago   Up 17 minutes (healthy)   5000/tcp
-asd_research_platform-frontend-1     asd_research_platform-frontend     "/docker-entrypoint.…"   frontend     18 minutes ago   Up 17 minutes (healthy)   127.0.0.1:3000->80/tcp
-asd_research_platform-ml-service-1   asd_research_platform-ml-service   "gunicorn --bind 0.0…"   ml-service   18 minutes ago   Up 18 minutes (healthy)   5010/tcp
