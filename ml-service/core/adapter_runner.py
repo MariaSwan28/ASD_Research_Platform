@@ -2,7 +2,9 @@
 import logging
 import time
 from core.model_registry import get_adapter
-from core.result_contract import AdapterError, ContractError, envelope, utc_now, validate_presentation
+from core.report_contract import build_report, validate_report
+from core.run_artifacts import artifact_exists
+from core.result_contract import AdapterError, ContractError, envelope, utc_now, validate_presentation, validate_adapter_result
 
 logger = logging.getLogger(__name__)
 
@@ -26,10 +28,19 @@ def run_model(model_id, payload):
         if state != "configured":
             raise AdapterError("model_unavailable", reason or "Модель недоступна", 503)
         result = adapter.analyze(payload)
-        if model.get("result_schema_version") in ("1.1", "1.2"):
+        if model.get("result_schema_version") in ("1.1", "1.2", "1.3"):
             if not isinstance(result, dict):
                 raise ContractError("adapter_result_must_be_object")
             validate_presentation(result)
+        validate_adapter_result(result)
+        if model.get('result_schema_version') == '1.3':
+            artifacts = result.get('artifacts', [])
+            by_id = {x['id']: x for x in artifacts}
+            result['report'] = build_report(model.get('report_schema'), result.pop('report_blocks', []), artifacts,
+                                           verify_file=lambda identifier: artifact_exists(context, by_id[identifier]))
+            missing = validate_report(result['report'], artifacts)
+            if missing and not result.get('partial_error'):
+                result['partial_error'] = {'code':'incomplete_report', 'message':'Не получены обязательные блоки отчёта'}
         return envelope(model, context, started_at, round((time.monotonic() - clock) * 1000), result=result), 200
     except AdapterError as exc:
         code, message, http_status = exc.code, str(exc), exc.http_status

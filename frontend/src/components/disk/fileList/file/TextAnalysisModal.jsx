@@ -62,12 +62,12 @@ export default function TextAnalysisModal({ file, onClose, onCompleted, onRunnin
       onCompleted?.(data);
     } catch (err) {
       const failed = err.response?.data;
-      if (['1.0', '1.1', '1.2'].includes(failed?.schema_version)) {
+      if (['1.0', '1.1', '1.2', '1.3'].includes(failed?.schema_version)) {
         setResult(failed);
         setHistory(prev => [{ id: failed.analysis_id, date: failed.execution?.finished_at, modelId: selected, result: failed }, ...prev]);
       }
       if (failed?.schema_version) onCompleted?.(failed);
-      setMessage(['1.0', '1.1', '1.2'].includes(failed?.schema_version) ? '' : failed?.message || failed?.error?.message || 'Не удалось выполнить анализ');
+      setMessage(['1.0', '1.1', '1.2', '1.3'].includes(failed?.schema_version) ? '' : failed?.message || failed?.error?.message || 'Не удалось выполнить анализ');
     } finally { setLoading(false); onRunningChange?.(false); }
   }
 

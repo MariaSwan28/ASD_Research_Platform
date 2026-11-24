@@ -106,7 +106,7 @@ test('HTTP + SQLite: ownership, canonical persistence, failures, old history and
     }
     await TextRecords.create({ ownerId: owner._id, fileId: file._id, modelId: 'parent-story-nb', modelVersion: 'old', resultJson: '{"label":0}' })
     const history = await (await fetch(`${base}/analyses/${file._id}`, { headers: headers(owner._id) })).json()
-    assert.equal(history.length, 5); assert.ok(history.some(item => item.result.label === 0))
+    assert.equal(history.length, 5); assert.ok(history.some(item => item.result.conclusion.code === 'legacy_summary' && item.result.conclusion.title.includes('без РАС')))
     assert.equal((await fetch(`${base}/analyses/${file._id}`, { headers: headers(other._id) })).status, 404)
     mode = 'failure'; await analyze(video._id, videoModel.id); await video.reload(); assert.equal(video.hasAnalysis, false)
     mode = 'success'; await analyze(video._id, otherVideoModel.id); await video.reload(); assert.equal(video.hasAnalysis, false)

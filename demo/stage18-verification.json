@@ -1,0 +1,29 @@
+{
+  "release": "18",
+  "base": "17.1",
+  "node_tests": {
+    "passed": 13,
+    "failed": 0
+  },
+  "react_tests": {
+    "passed": 37,
+    "failed": 0
+  },
+  "production_build": "passed with lint warnings",
+  "verified": [
+    "assigned child material access",
+    "shared parent-owned storage and quota",
+    "text save without tags",
+    "specialist video-only tags including chunks",
+    "FIO search and assignment refresh",
+    "server-projected parent summary",
+    "specialist full report and common history",
+    "legacy history redaction",
+    "raw feature and artifact endpoints blocked for parents",
+    "revocation invalidates downloads and active uploads",
+    "same-parent sibling profile isolation",
+    "admin scope preserved"
+  ],
+  "ml_source_and_weights": "byte-identical to 17.1",
+  "docker_full_video_browser": "not run"
+}

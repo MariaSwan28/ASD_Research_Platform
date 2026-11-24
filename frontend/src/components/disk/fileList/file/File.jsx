@@ -11,6 +11,7 @@ import TextAnalysisModal from './TextAnalysisModal';
 
 export default function File({ file }) {
   const dispatch = useDispatch();
+  const isSpecialist = useSelector(state => state.user.currentUser.role) === 'specialist';
   const userId = useSelector(state => state.user.currentUser.id);
   const currentDir = useSelector(state => state.files.currentDir);
   const fileView = useSelector(state => state.files.view);
@@ -28,7 +29,7 @@ export default function File({ file }) {
   const open = () => {
     if (file.type === 'dir') {
       dispatch(auth()); dispatch(pushToStack(currentDir)); dispatch(setCurrentDir(file._id));
-    } else if (info.category === 'Видео' && (file.hasAnalysis || processedVideo)) setShowPlayer(true);
+    } else if (isSpecialist && info.category === 'Видео' && (file.hasAnalysis || processedVideo)) setShowPlayer(true);
   };
   const stop = action => event => { event.stopPropagation(); action(); };
   const completed = result => {
@@ -48,12 +49,12 @@ export default function File({ file }) {
       <div className={plate ? 'file-plate__name' : 'file__details'}>
         <div className="file__name" title={file.name}>{file.name}</div>
         <div className="file__type-label">{info.label}</div>
-        {info.category === 'Видео' && (file.hasAnalysis || processedVideo) && <button type="button" className="file__video-link" onClick={stop(() => setShowPlayer(true))}>Последнее обработанное видео</button>}
+        {isSpecialist && info.category === 'Видео' && (file.hasAnalysis || processedVideo) && <button type="button" className="file__video-link" onClick={stop(() => setShowPlayer(true))}>Последнее обработанное видео</button>}
       </div>
       {!plate && <><div className="file__date">{file.date?.slice(0, 10) || '—'}</div><div className="file__size">{file.type === 'dir' ? '—' : sizeFormat(file.size)}</div></>}
       <div className={plate ? 'file-plate__btns' : 'file__actions'}>{actions}</div>
     </div>
     {showAnalysis && <TextAnalysisModal file={file} onClose={() => setShowAnalysis(false)} onCompleted={completed} onRunningChange={setRunning} />}
-    {showPlayer && <VideoPlayerModal file={file} token={token} userId={userId} onClose={() => setShowPlayer(false)} />}
+    {showPlayer && <VideoPlayerModal file={file} token={token} userId={file.user || userId} onClose={() => setShowPlayer(false)} />}
   </>;
 }

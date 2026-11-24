@@ -1,0 +1,43 @@
+{
+  "release": "stage17",
+  "base": "stage16.3",
+  "result_schema": "1.3",
+  "report_schema": "1.0",
+  "tests": {
+    "python_real_models": 37,
+    "node": 12,
+    "react": 34
+  },
+  "text_classification": "original labels, pipeline and thresholds retained",
+  "report_demo": "text + table + three images generated successfully",
+  "live": {
+    "real_node_flask_sqlite": true,
+    "prior_role_data_and_parent_notes_preserved": true,
+    "admin_still_denied_materials": true,
+    "text_real_model_and_unchanged_classification": true,
+    "audio_real_three_intervals": true,
+    "image_and_audio_artifacts_download": true,
+    "history_snapshot_matches": true,
+    "runs": [
+      {
+        "fileId": "ef505e49-2c47-44fb-a4be-66ff8759793c",
+        "modelId": "parent-story-nb",
+        "analysisId": "d62798ce-763d-4f37-ba2c-2aeca9c4f230",
+        "status": "completed",
+        "blocks": 3
+      },
+      {
+        "fileId": "9a050dc9-f2d7-4c31-a7d0-3a2b1fcfc6b8",
+        "modelId": "audio-activity-v1",
+        "analysisId": "50b944d7-058c-422c-ba08-46f9beb920f2",
+        "status": "completed",
+        "blocks": 5
+      }
+    ]
+  },
+  "weights": "unchanged",
+  "roles": "unchanged from 16.3",
+  "full_video_pose": "not run in this environment",
+  "docker_timeweb": "not run",
+  "browser_visual": "not run"
+}

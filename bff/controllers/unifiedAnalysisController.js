@@ -1,3 +1,6 @@
+import { visibleResult } from '../services/reportVisibility.js'
+import { accessibleFile } from '../services/materialAccess.js'
+import { verifyReportArtifacts } from '../services/reportArtifacts.js'
 import { resolveArtifact } from '../services/artifactService.js'
 import { mlHeaders } from '../services/mlHeaders.js'
 import fetch from 'node-fetch'
@@ -32,6 +35,8 @@ async function callModel(modelId, payload, timeoutMs, expected) {
       throw new Error('invalid_model_result')
     }
     validateAnalysisResult(result, expected)
+    await verifyReportArtifacts(result, expected)
+    validateAnalysisResult(result, expected)
     if (response.ok !== ['completed', 'partial'].includes(result.status)) throw new Error('invalid_model_result')
     return { result, httpStatus: response.ok ? 200 : response.status === 400 ? 422 : response.status }
   } finally { clearTimeout(timer) }
@@ -58,20 +63,24 @@ async function capabilitiesForFile(file) {
 // Only user-owned files go through this controller. Never accept a client path.
 export const unifiedAnalysisController = {
   async artifact(req, res) {
-    const record = await UnifiedAnalysisResult.findOne({ where: { id: req.params.analysisId, ownerId: req.user.id } })
+    if (req.user.role !== 'specialist') return res.status(403).json({ message: 'Полные материалы отчёта доступны только специалисту' })
+    const record = await UnifiedAnalysisResult.findOne({ where: { id: req.params.analysisId, ownerId: req.materialOwnerId } })
     if (!record) return res.status(404).json({ message: 'Результат не найден' })
-    const file = await File.findOne({ where: { _id: record.fileId, user: req.user.id } })
+    const file = await File.findOne({ where: { _id: record.fileId, user: req.materialOwnerId } })
     if (!file) return res.status(404).json({ message: 'Материал не найден' })
     try {
       const artifact = await resolveArtifact(record, req.params.artifactId)
       if (!artifact) return res.status(404).json({ message: 'Файл результата не найден' })
       res.type(artifact.type)
-      res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(artifact.name)}"`)
+      const inlineTypes = new Set(['image/png','image/jpeg','image/webp','audio/wav','audio/x-wav','audio/mpeg','audio/mp4','audio/ogg','audio/flac','audio/aac','audio/webm','video/mp4','video/webm','video/quicktime'])
+      res.setHeader('X-Content-Type-Options', 'nosniff')
+      res.setHeader('Content-Security-Policy', "default-src 'none'; sandbox")
+      res.setHeader('Content-Disposition', `${inlineTypes.has(artifact.type) ? 'inline' : 'attachment'}; filename="${encodeURIComponent(artifact.name)}"`)
       return res.sendFile(artifact.path)
     } catch { return res.status(404).json({ message: 'Файл результата недоступен' }) }
   },
   async available(req, res) {
-    const file = await File.findOne({ where: { _id: req.params.fileId, user: req.user.id } })
+    const file = await File.findOne({ where: { _id: req.params.fileId, user: req.materialOwnerId } })
     if (!file) return res.status(404).json({ message: 'Материал не найден' })
     if (file.type === 'dir') return res.json({ models: [] })
     try {
@@ -87,7 +96,7 @@ export const unifiedAnalysisController = {
         typeof modelId !== 'string' || !MODEL_ID.test(modelId)) {
       return res.status(400).json({ message: 'Неверный идентификатор файла или модели' })
     }
-    const file = await File.findOne({ where: { _id: fileId, user: req.user.id } })
+    const file = await File.findOne({ where: { _id: fileId, user: req.materialOwnerId } })
     if (!file || file.type === 'dir') return res.status(404).json({ message: 'Материал не найден' })
     let model
     try {
@@ -115,19 +124,19 @@ export const unifiedAnalysisController = {
       }
       payload = { text: content }
     } else if (model.modality === 'video') {
-      payload = { user_id: req.user.id, video_path: safeStoredPath(file) }
+      payload = { user_id: req.materialOwnerId, video_path: safeStoredPath(file) }
       timeoutMs = 1200000
     } else {
       // A future trusted developer adapter receives a validated shared file
       // path. The frontend and BFF stay unchanged for other modalities.
-      payload = { user_id: req.user.id, file_path: safeStoredPath(file), file_name: file.name }
+      payload = { user_id: req.materialOwnerId, file_path: safeStoredPath(file), file_name: file.name }
       timeoutMs = 1200000
     }
-    const expected = { analysisId: randomUUID(), fileId: file._id, model, startedAt: new Date().toISOString() }
+    const expected = { ownerId: req.materialOwnerId, analysisId: randomUUID(), fileId: file._id, model, startedAt: new Date().toISOString() }
     // IDs and paths are supplied by the authenticated backend, never the client.
     payload.analysis_id = expected.analysisId
     payload.file_id = file._id
-    payload.user_id = req.user.id
+    payload.user_id = req.materialOwnerId
     payload.file_path = safeStoredPath(file)
     payload.file_name = file.name
     let result, httpStatus
@@ -146,7 +155,7 @@ export const unifiedAnalysisController = {
     }
     try {
       await UnifiedAnalysisResult.create({
-        id: expected.analysisId, ownerId: req.user.id, childProfileId: file.childProfileId || null,
+        id: expected.analysisId, ownerId: req.materialOwnerId, childProfileId: file.childProfileId || null,
         fileId: file._id, modelId, modelVersion: model.version,
         status: result.status, resultJson: JSON.stringify(result)
       })
@@ -155,10 +164,11 @@ export const unifiedAnalysisController = {
         await file.save()
       }
       // Aliases keep older clients functional; canonical fields are stored as-is.
-      return res.status(httpStatus).json({ ...result, analysisId: result.analysis_id,
+      if (!await accessibleFile(req.user, file._id)) return res.status(404).json({ message: 'Материал больше недоступен' })
+      return res.status(httpStatus).json(visibleResult({ ...result, analysisId: result.analysis_id,
         fileId: file._id, childProfileId: file.childProfileId || null,
         model_id: modelId, model_version: model.version,
-        ...(result.error ? { message: result.error.message, reason: result.error.code } : {}) })
+        ...(result.error ? { message: result.error.message, reason: result.error.code } : {}) }, req.user))
     } catch (error) {
       console.warn('Cannot persist ML result:', error.message)
       return res.status(500).json({ message: 'Не удалось сохранить результат анализа' })
@@ -166,9 +176,9 @@ export const unifiedAnalysisController = {
   },
 
   async history(req, res) {
-    const file = await File.findOne({ where: { _id: req.params.fileId, user: req.user.id } })
+    const file = await File.findOne({ where: { _id: req.params.fileId, user: req.materialOwnerId } })
     if (!file) return res.status(404).json({ message: 'Материал не найден' })
-    const where = { fileId: file._id, ownerId: req.user.id }
+    const where = { fileId: file._id, ownerId: req.materialOwnerId }
     if (req.query.modelId) {
       if (!MODEL_ID.test(String(req.query.modelId))) return res.status(400).json({ message: 'Неверная модель' })
       where.modelId = req.query.modelId
@@ -177,18 +187,18 @@ export const unifiedAnalysisController = {
     const items = records.map(record => ({
       id: record.id, date: record.createdAt, modelId: record.modelId,
       modelVersion: record.modelVersion, status: record.status,
-      result: JSON.parse(record.resultJson)
+      result: visibleResult(JSON.parse(record.resultJson), req.user)
     }))
     // Preserve visibility of text analyses created before stage 9.
     if (!req.query.modelId || req.query.modelId === 'parent-story-nb') {
       const previous = await TextAnalysisResult.findAll({
-        where: { fileId: file._id, ownerId: req.user.id },
+        where: { fileId: file._id, ownerId: req.materialOwnerId },
         order: [['createdAt', 'DESC']], limit: 40
       })
       items.push(...previous.map(record => ({
         id: record.id, date: record.createdAt, modelId: record.modelId,
         modelVersion: record.modelVersion, status: 'completed',
-        result: JSON.parse(record.resultJson)
+        result: visibleResult(JSON.parse(record.resultJson), req.user)
       })))
     }
     return res.json(items.sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 40))

@@ -1,4 +1,4 @@
-import { saveMaterial, validateName, tagsList, MAX_FILE_BYTES, CHUNK_BYTES } from '../services/materialStorage.js'
+import { saveMaterial, validateName, tagsList, MAX_FILE_BYTES, CHUNK_BYTES, metadata, storageError } from '../services/materialStorage.js'
 import fileService from '../services/fileService.js'
 import fs from 'fs'
 import User from '../models/User.js'
@@ -10,9 +10,24 @@ import sequelize from '../DB/database.js'
 import { Op } from 'sequelize'
 import UnifiedAnalysisResult from '../models/UnifiedAnalysisResult.js'
 import TextAnalysisResult from '../models/TextAnalysisResult.js'
+import { accessibleChild } from '../services/materialAccess.js'
 import { ownedChildId } from '../services/childAccess.js'
 
 import { mlService } from '../services/mlSerivce.js'
+
+
+function uploadTags(req, name, tags) {
+  const selected = tagsList(tags)
+  if (selected.length && (req.user.role !== 'specialist' || metadata(name).materialCategory !== 'video')) {
+    throw storageError('Теги может назначать только специалист при загрузке видео', 403)
+  }
+  return selected
+}
+async function sessionAllowed(req, info) {
+  if (req.user.role === 'parent') return info.user === req.user.id
+  const child = await accessibleChild(req.user, info.childProfileId)
+  return child && child.ownerId === info.user
+}
 
 const activeUploads = new Map()
 const reapUploads = setInterval(() => {
@@ -51,11 +66,11 @@ class FileController {
       const { name, type, parent } = req.body
       validateName(name)
       if (type !== 'dir') return res.status(400).json({ message: 'Недопустимый тип папки' })
-      const childProfileId = await ownedChildId(req.user.id, req.body.childProfileId)
+      const childProfileId = await ownedChildId(req.materialOwnerId, req.body.childProfileId)
       if (childProfileId === undefined) return res.status(403).json({ message: 'Нет доступа к профилю ребёнка' })
-      const file = new File({ name, type, parent, user: req.user.id, childProfileId })
+      const file = new File({ name, type, parent, user: req.materialOwnerId, childProfileId })
       const parentFile = parent
-        ? await File.findOne({ where: { _id: parent, user: req.user.id, type: 'dir' } })
+        ? await File.findOne({ where: { _id: parent, user: req.materialOwnerId, type: 'dir' } })
         : null
       if (parent && (!parentFile || parentFile.childProfileId !== childProfileId)) {
         return res.status(404).json({ message: 'Родительская папка не найдена' })
@@ -81,14 +96,14 @@ class FileController {
   async getFiles (req, res) {
     try {
       const { sort } = req.query
-      const childProfileId = await ownedChildId(req.user.id, req.query.childProfileId)
+      const childProfileId = await ownedChildId(req.materialOwnerId, req.query.childProfileId)
       if (childProfileId === undefined) return res.status(403).json({ message: 'Нет доступа к профилю ребёнка' })
       let files
       switch (sort) {
         case 'name':
           files = await File.findAll({
             where: {
-              user: req.user.id,
+              user: req.materialOwnerId,
               childProfileId,
               parent: req.query.parent ? req.query.parent : null
             },
@@ -104,7 +119,7 @@ class FileController {
         case 'type':
           files = await File.findAll({
             where: {
-              user: req.user.id,
+              user: req.materialOwnerId,
               childProfileId,
               parent: req.query.parent ? req.query.parent : null
             },
@@ -120,7 +135,7 @@ class FileController {
         case 'date':
           files = await File.findAll({
             where: {
-              user: req.user.id,
+              user: req.materialOwnerId,
               childProfileId,
               parent: req.query.parent ? req.query.parent : null
             },
@@ -136,7 +151,7 @@ class FileController {
         default:
           files = await File.findAll({
             where: {
-              user: req.user.id,
+              user: req.materialOwnerId,
               childProfileId,
               parent: req.query.parent ? req.query.parent : null
             },
@@ -150,7 +165,7 @@ class FileController {
           break
       }
       console.log('get Files done')
-      return res.json(await withAnalysisSummary(files, req.user.id))
+      return res.json(await withAnalysisSummary(files, req.materialOwnerId))
     } catch (e) {
       console.log('get Files error', e)
       return res.status(500).json({ message: 'Can not get files' })
@@ -161,7 +176,7 @@ class FileController {
     try {
       console.log('Получено содержимое .txt')
       const file = await File.findOne({
-        where: { _id: req.query.fileId, user: req.user.id }
+        where: { _id: req.query.fileId, user: req.materialOwnerId }
       })
       if (!file) return res.status(404).json({ message: 'Файл не найден' })
       const pathToFile = fileService.getPath(file)
@@ -192,18 +207,19 @@ class FileController {
           !Number.isSafeInteger(totalChunks) || totalChunks !== Math.ceil(fileSize / CHUNK_BYTES)) {
         return res.status(400).json({ message: 'Неверный размер файла или число частей' })
       }
-      if ([...activeUploads.values()].filter(x => x.user === req.user.id).length >= 3) return res.status(429).json({ message: 'Слишком много незавершённых загрузок' })
-      const childProfileId = await ownedChildId(req.user.id, req.body.childProfileId)
+      if ([...activeUploads.values()].filter(x => x.actorId === req.user.id).length >= 3) return res.status(429).json({ message: 'Слишком много незавершённых загрузок' })
+      const childProfileId = await ownedChildId(req.materialOwnerId, req.body.childProfileId)
       if (childProfileId === undefined) return res.status(403).json({ message: 'Нет доступа к профилю ребёнка' })
-      const user = await User.findByPk(req.user.id)
+      const user = await User.findByPk(req.materialOwnerId)
       if (!user || Number(user.usedSpace) + fileSize > Number(user.diskSpace)) return res.status(400).json({ message: 'Нет места на диске' })
-      const folder = parent ? await File.findOne({ where: { _id: parent, user: req.user.id, type: 'dir' } }) : null
+      const folder = parent ? await File.findOne({ where: { _id: parent, user: req.materialOwnerId, type: 'dir' } }) : null
       if (parent && (!folder || folder.childProfileId !== childProfileId)) return res.status(404).json({ message: 'Папка не найдена' })
+      const selectedTags = uploadTags(req, fileName, tags)
       const uploadId = uuidv4()
       const tempDir = path.join(CONFIG.FILE_PATH, 'temp', uploadId)
       fs.mkdirSync(tempDir, { recursive: true })
       activeUploads.set(uploadId, { fileName, fileSize, totalChunks, uploadedChunks: new Set(), receiving: new Set(),
-        parent: parent || null, user: req.user.id, tags: tagsList(tags), childProfileId, tempDir, createdAt: Date.now(), completing: false })
+        parent: parent || null, user: req.materialOwnerId, actorId: req.user.id, tags: selectedTags, childProfileId, tempDir, createdAt: Date.now(), completing: false })
       return res.json({ uploadId })
     } catch (error) { return res.status(error.status || 400).json({ message: error.status ? error.message : 'Не удалось начать загрузку' }) }
   }
@@ -211,7 +227,7 @@ class FileController {
   async uploadChunk (req, res) {
     const { uploadId, chunkIndex } = req.body
     const info = activeUploads.get(uploadId)
-    if (!info || info.user !== req.user.id) return res.status(404).json({ message: 'Загрузка не найдена' })
+    if (!info || info.actorId !== req.user.id || !(await sessionAllowed(req, info))) return res.status(404).json({ message: 'Загрузка не найдена' })
     const index = Number(chunkIndex), chunk = req.files?.chunk
     if (!/^(0|[1-9][0-9]*)$/.test(String(chunkIndex)) || !Number.isSafeInteger(index) || index < 0 || index >= info.totalChunks || !chunk || Array.isArray(chunk)) return res.status(400).json({ message: 'Некорректная часть файла' })
     if (info.completing || info.receiving.has(index)) return res.status(409).json({ message: 'Часть файла уже обрабатывается' })
@@ -229,7 +245,7 @@ class FileController {
 
   async completeUpload (req, res) {
     const info = activeUploads.get(req.body.uploadId)
-    if (!info || info.user !== req.user.id) return res.status(404).json({ message: 'Загрузка не найдена' })
+    if (!info || info.actorId !== req.user.id || !(await sessionAllowed(req, info))) return res.status(404).json({ message: 'Загрузка не найдена' })
     if (info.completing || info.receiving.size) return res.status(409).json({ message: 'Загрузка ещё выполняется' })
     if (info.uploadedChunks.size !== info.totalChunks) return res.status(400).json({ message: 'Не все части загружены' })
     info.completing = true
@@ -239,7 +255,7 @@ class FileController {
       try {
         for (let i = 0; i < info.totalChunks; i++) await output.writeFile(await fs.promises.readFile(path.join(info.tempDir, `chunk_${i}`)))
       } finally { await output.close() }
-      const file = await saveMaterial({ userId: req.user.id, name: info.fileName, stagedPath: combined, expectedSize: info.fileSize,
+      const file = await saveMaterial({ userId: info.user, name: info.fileName, stagedPath: combined, expectedSize: info.fileSize,
         parentId: info.parent, childProfileId: info.childProfileId, tags: info.tags })
       return res.json(file)
     } catch (error) { return res.status(error.status || 500).json({ message: error.status ? error.message : 'Не удалось сохранить файл' }) }
@@ -252,12 +268,12 @@ class FileController {
     const staged = path.join(CONFIG.FILE_PATH, 'temp', uuidv4())
     try {
       validateName(file.name)
-      const childProfileId = await ownedChildId(req.user.id, req.body.childProfileId)
+      const childProfileId = await ownedChildId(req.materialOwnerId, req.body.childProfileId)
       if (childProfileId === undefined) return res.status(403).json({ message: 'Нет доступа к профилю ребёнка' })
       fs.mkdirSync(path.dirname(staged), { recursive: true })
       await file.mv(staged)
-      const saved = await saveMaterial({ userId: req.user.id, name: file.name, stagedPath: staged, expectedSize: file.size,
-        parentId: req.body.parent || null, childProfileId, tags: req.body.tags })
+      const saved = await saveMaterial({ userId: req.materialOwnerId, name: file.name, stagedPath: staged, expectedSize: file.size,
+        parentId: req.body.parent || null, childProfileId, tags: uploadTags(req, file.name, req.body.tags) })
       return res.json(saved)
     } catch (error) { return res.status(error.status || 500).json({ message: error.status ? error.message : 'Не удалось сохранить файл' }) }
     finally { await fs.promises.rm(staged, { force: true }).catch(() => {}) }
@@ -266,7 +282,7 @@ class FileController {
   async downloadFile (req, res) {
     try {
       const file = await File.findOne({
-        where: { _id: req.query.id, user: req.user.id }
+        where: { _id: req.query.id, user: req.materialOwnerId }
       })
       if (!file) return res.status(404).json({ message: 'Файл не найден' })
       const path = fileService.getPath(file)
@@ -284,13 +300,13 @@ class FileController {
   async deleteFile (req, res) {
     try {
       const file = await File.findOne({
-        where: { _id: req.query.id, user: req.user.id }
+        where: { _id: req.query.id, user: req.materialOwnerId }
       })
       if (!file) {
         return res.status(404).json({ message: 'Файл не найден' })
       }
       const user = await User.findOne({
-        where: { _id: req.user.id }
+        where: { _id: req.materialOwnerId }
       })
       if (!user) {
         return res.status(404).json({ message: 'Пользователь не найден' })
@@ -303,10 +319,10 @@ class FileController {
         await user.save({ transaction })
         await file.destroy({ transaction })
       })
-      const records = await UnifiedAnalysisResult.findAll({ where: { ownerId: req.user.id, fileId: file._id } })
-      for (const record of records) await fs.promises.rm(path.join(CONFIG.DATASET_DIR, req.user.id, 'runs', record.id), { force: true, recursive: true }).catch(() => {})
-      await UnifiedAnalysisResult.destroy({ where: { ownerId: req.user.id, fileId: file._id } })
-      await TextAnalysisResult.destroy({ where: { ownerId: req.user.id, fileId: file._id } })
+      const records = await UnifiedAnalysisResult.findAll({ where: { ownerId: req.materialOwnerId, fileId: file._id } })
+      for (const record of records) await fs.promises.rm(path.join(CONFIG.DATASET_DIR, req.materialOwnerId, 'runs', record.id), { force: true, recursive: true }).catch(() => {})
+      await UnifiedAnalysisResult.destroy({ where: { ownerId: req.materialOwnerId, fileId: file._id } })
+      await TextAnalysisResult.destroy({ where: { ownerId: req.materialOwnerId, fileId: file._id } })
       console.log('delete File done')
       return res.json({ message: 'Файл был удалён' })
     } catch (e) {
@@ -319,7 +335,7 @@ class FileController {
     try {
       for (const key of ['linkName', 'linkNameOld']) if (req.body[key] != null && (typeof req.body[key] !== 'string' || ['__proto__', 'constructor', 'prototype'].includes(req.body[key]) || req.body[key].length > 240)) return res.status(400).json({ message: 'Недопустимое имя ссылки' })
       const file = await File.findOne({
-        where: { _id: req.body.fileId, user: req.user.id }
+        where: { _id: req.body.fileId, user: req.materialOwnerId }
       })
       if (!file) {
         return res.status(400).json({ message: 'Файл не найден' })
@@ -352,11 +368,11 @@ class FileController {
     try {
       const searchName = req.query.search
       let files = await File.findAll({
-        where: { user: req.user.id }
+        where: { user: req.materialOwnerId, ...(req.user.role === 'specialist' ? {childProfileId: req.materialChildId} : {}) }
       })
       files = files.filter(file => file.name.includes(searchName))
       console.log('search File done')
-      return res.json(await withAnalysisSummary(files, req.user.id))
+      return res.json(await withAnalysisSummary(files, req.materialOwnerId))
     } catch (e) {
       console.log('search File error', e)
       return res.status(400).json({ message: 'Search error' })
@@ -378,7 +394,7 @@ class FileController {
       user.avatar = avatarName
       await user.save()
       console.log('upload Avatar done')
-      return res.json({ id: user._id, _id: user._id, email: user.email, avatar: user.avatar, usedSpace: user.usedSpace, diskSpace: user.diskSpace, isActivated: user.isActivated, date: user.date, gender: user.gender })
+      return res.json({ id: user._id, _id: user._id, email: user.email, role: user.role, fullName: user.fullName, avatar: user.avatar, usedSpace: user.usedSpace, diskSpace: user.diskSpace, isActivated: user.isActivated, date: user.date, gender: user.gender })
     } catch (e) {
       console.log('upload Avatar error', e)
       return res
@@ -394,7 +410,7 @@ class FileController {
       user.avatar = null
       await user.save()
       console.log('delete Avatar done')
-      return res.json({ id: user._id, _id: user._id, email: user.email, avatar: user.avatar, usedSpace: user.usedSpace, diskSpace: user.diskSpace, isActivated: user.isActivated, date: user.date, gender: user.gender })
+      return res.json({ id: user._id, _id: user._id, email: user.email, role: user.role, fullName: user.fullName, avatar: user.avatar, usedSpace: user.usedSpace, diskSpace: user.diskSpace, isActivated: user.isActivated, date: user.date, gender: user.gender })
     } catch (e) {
       console.log('delete Avatar error', e)
       return res

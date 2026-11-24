@@ -3,6 +3,7 @@
 Kept outside discovery: this is a developer scaffold, not a working model.
 """
 from core.result_contract import AdapterError, make_result, parameter
+from core.report_contract import text_block, table_block, METRIC_COLUMNS
 
 MODEL = {
     "id": "replace-with-unique-model-id",
@@ -12,8 +13,13 @@ MODEL = {
     "input_types": ["image/png"],
     "extensions": [".png"],
     "operation": "image-classification",
-    "result_schema_version": "1.2",
+    "result_schema_version": "1.3",
 }
+
+MODEL['report_schema'] = {'version':'1.0','blocks':[
+    {'id':'summary','type':'text','title':'Итог анализа','required':True},
+    {'id':'metrics','type':'table','title':'Показатели','required':True,'columns':METRIC_COLUMNS}
+]}
 
 # Set only after implementing infer() and real dependency/artifact checks.
 IMPLEMENTED = False
@@ -60,6 +66,7 @@ def present(raw):
         raw_output=raw,
         # Optional: custom typed parameters/tables for the Details section.
         # Without parameters the helper wraps raw_output automatically.
+        report_blocks=[text_block('summary', 'Не удалось получить однозначную оценку.'), table_block('metrics', [])],
         artifacts=[],  # Only registered file IDs; no arbitrary file paths/URLs.
         warnings=[],
     )

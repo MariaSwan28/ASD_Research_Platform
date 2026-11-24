@@ -1,0 +1,14 @@
+{
+  "release": "18.1",
+  "base": "18",
+  "react_tests_passed": 37,
+  "production_build": "passed with lint warnings",
+  "server_and_ml": "byte-identical to 18",
+  "changes": [
+    "child table for parent and specialist",
+    "removed newly added profile refresh buttons",
+    "automatic profile reload on window focus",
+    "search preserved while loading materials"
+  ],
+  "browser_visual": "not run"
+}

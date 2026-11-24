@@ -1,0 +1,32 @@
+{
+  "release": "stage16.2",
+  "node_tests_passed": 9,
+  "react_tests_passed": 26,
+  "production_build": "passed with legacy lint warnings",
+  "upgrade_from_stage16_1": {
+    "upgrade_from_stage16_1": true,
+    "existing_accounts_profiles_notes_preserved": true,
+    "admin_excluded_from_business_lists": true,
+    "admin_parent_specialist_child_crud": true,
+    "assignment": true,
+    "child_delete_moves_actual_upload_to_general_materials": true,
+    "download_bytes_preserved": true,
+    "deleted_account_old_jwt_denied": true,
+    "restart_persistence": true
+  },
+  "deletion_policy": {
+    "accounts": "archive and revoke all access; preserve stored records and materials",
+    "child": "remove profile and links; detach files/history to same parent general materials"
+  },
+  "business_lists": [
+    "parent",
+    "specialist"
+  ],
+  "admin_in_business_lists": false,
+  "public_registration": "parent-only",
+  "child_alias_input": false,
+  "header": "FIO with profile fallback",
+  "ml_sources": "unchanged",
+  "docker": "not run",
+  "browser_visual": "not run; environment limitation"
+}

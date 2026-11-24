@@ -3,6 +3,11 @@ import { authMiddleware } from './middleware/auth.middleware.js'
 import bcrypt from 'bcryptjs'
 import User from './models/User.js'
 import { migrateStorage } from './services/storageMigration.js'
+import { migrateRoles } from './services/roleMigration.js'
+import { migrateNames } from './services/nameMigration.js'
+import { migrateAdministration } from './services/adminMigration.js'
+import { router as adminRouter } from './routes/admin.routes.js'
+import { materialAccess } from './middleware/roles.middleware.js'
 import { requestLimit } from './middleware/requestLimit.js'
 import express from 'express'
 import fileUpload from 'express-fileupload'
@@ -51,7 +56,7 @@ const corsOptions = {
       callback(null, false) // Не блокируем, а просто запрещаем
     }
   },
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'HEAD'],
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS', 'HEAD'],
   allowedHeaders: [
     'Content-Type',
     'Authorization',
@@ -97,7 +102,7 @@ app.use(cors(corsOptions))
 //     origin: true,
 //     credentials: true
 // }));
-app.use('/api/files', authMiddleware,
+app.use('/api/files', authMiddleware, materialAccess,
   fileUpload({
     limits: { fileSize: 200 * 1024 * 1024 },
     abortOnLimit: true, useTempFiles: true, tempFileDir: '/tmp/asd-uploads',
@@ -122,6 +127,7 @@ app.use(express.static('public'))
 app.use('/api/auth', authRouter)
 app.use('/api/files', fileRouter)
 app.use('/api/children', childRouter)
+app.use('/api/admin', adminRouter)
 app.use('/api/video', videoRouter)
 app.use(`/api/ml`, mlRouter)
 app.use(errorHandler)
@@ -142,6 +148,9 @@ const start = async () => {
         await sequelize.getQueryInterface().addColumn('Files', 'childProfileId', { type: 'UUID', allowNull: true })
       }
     }
+    await migrateRoles(sequelize)
+    await migrateNames(sequelize)
+    await migrateAdministration(sequelize)
     await migrateStorage(sequelize)
     console.log('DB is start')
     await sequelize.query('PRAGMA journal_mode = WAL;')
@@ -153,20 +162,11 @@ const start = async () => {
       legacyAdmin.password = await bcrypt.hash(CONFIG.SUPREUSER_PASS, 15)
       await legacyAdmin.save()
     }
-    try {
-      if (CONFIG.SUPERUSER_LOGIN && CONFIG.SUPREUSER_PASS) {
-        console.log('CONFIG.SUPERUSER_LOGIN', CONFIG.SUPERUSER_LOGIN)
-        await userService.registration(
-          CONFIG.SUPERUSER_LOGIN,
-          CONFIG.SUPREUSER_PASS,
-          new Date(),
-          'male'
-        )
-      }
-    } catch {
-      console.log('')
+    if (CONFIG.SUPERUSER_LOGIN && CONFIG.SUPREUSER_PASS) {
+      const existing = await User.findOne({ where: { email: CONFIG.SUPERUSER_LOGIN } })
+      if (!existing) await userService.registration(CONFIG.SUPERUSER_LOGIN, CONFIG.SUPREUSER_PASS, new Date(), 'male')
+      await User.update({ role: 'admin' }, { where: { email: CONFIG.SUPERUSER_LOGIN } })
     }
-
     app.listen(PORT, '0.0.0.0', () => {
       console.log('Server started on port ', PORT)
     })

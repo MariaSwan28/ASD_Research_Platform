@@ -95,7 +95,7 @@ def validate_adapter_result(result):
     _require(isinstance(result, dict), "adapter_result_must_be_object")
     base = {"summary", "parameters", "artifacts", "warnings"}
     extra = {"conclusion", "metrics", "limitations", "raw_output"}
-    _require(base.issubset(result) and set(result).issubset(base | extra | {"partial_error"}), "invalid_adapter_result_fields")
+    _require(base.issubset(result) and set(result).issubset(base | extra | {"partial_error", "report_blocks", "report"}), "invalid_adapter_result_fields")
     _require(not (set(result) & extra) or extra.issubset(result), "incomplete_presentation")
     if "conclusion" in result:
         validate_presentation(result)
@@ -112,6 +112,11 @@ def validate_adapter_result(result):
         _require(isinstance(item, dict) and set(item).issubset({"id", "label", "media_type", "file_id"}), "invalid_artifact_fields")
         _require(all(isinstance(item.get(k), str) and bool(item[k]) for k in ("id", "label", "media_type")), "invalid_artifact")
         _require("file_id" not in item or isinstance(item["file_id"], str), "invalid_artifact_file_id")
+    if 'report_blocks' in result:
+        _require(isinstance(result['report_blocks'], list), 'report_blocks_must_be_list')
+    if 'report' in result:
+        from core.report_contract import validate_report
+        validate_report(result['report'], result['artifacts'])
     if result.get("partial_error") is not None:
         err = result["partial_error"]
         _require(isinstance(err, dict) and all(isinstance(err.get(k), str) and err[k].strip() for k in ("code", "message")), "invalid_partial_error")
@@ -149,9 +154,15 @@ def envelope(model, context, started_at, duration_ms, result=None, error=None):
     }
     if result and "conclusion" in result:
         presentation = {key: result[key] for key in presentation}
+    report = result.get('report') if result else None
+    if error and model.get('result_schema_version') == '1.3':
+        from core.report_contract import build_report
+        try: report = build_report(model.get('report_schema'), [], [], failure_message='Анализ не выполнен')
+        except ContractError: report = None
     return {
+        **({'report': report} if report is not None else {}),
         **presentation,
-        "schema_version": SCHEMA_VERSION,
+        "schema_version": "1.3" if report is not None else SCHEMA_VERSION,
         "analysis_id": context.get("analysis_id") or str(uuid4()),
         "status": "failed" if error else "partial" if result.get("partial_error") else "completed",
         "model": {"id": model["id"], "name": model["label"], "version": model["version"],
@@ -167,8 +178,8 @@ def envelope(model, context, started_at, duration_ms, result=None, error=None):
 
 
 def make_result(*, conclusion, metrics, limitations, raw_output,
-                parameters=None, artifacts=None, warnings=None, summary=None, partial_error=None):
-    """Build a validated 1.1 adapter payload; execution metadata belongs to runner.
+                parameters=None, artifacts=None, warnings=None, summary=None, partial_error=None, report_blocks=None):
+    """Build a validated adapter payload; execution metadata belongs to runner.
 
     Four domain fields are deliberately required. The raw output is retained in
     full, including unknown future fields. Never infer labels in this helper.
@@ -184,6 +195,8 @@ def make_result(*, conclusion, metrics, limitations, raw_output,
         "artifacts": artifacts if artifacts is not None else [],
         "warnings": warnings if warnings is not None else [],
     }
+    if report_blocks is not None:
+        result["report_blocks"] = report_blocks
     if partial_error is not None:
         result["partial_error"] = partial_error
     return validate_adapter_result(result)

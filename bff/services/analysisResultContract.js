@@ -1,3 +1,4 @@
+import { validateReport, emptyReport, finiteJson } from './reportContract.js'
 // Validate the ML boundary before a result can be marked completed or saved.
 const object = value => value !== null && typeof value === 'object' && !Array.isArray(value)
 const text = value => typeof value === 'string' && value.trim().length > 0
@@ -34,7 +35,7 @@ function validateParameter(item) {
 }
 
 export function validateAnalysisResult(result, expected) {
-  requireValue(object(result) && ['1.0', '1.1', '1.2'].includes(result.schema_version))
+  requireValue(object(result) && ['1.0', '1.1', '1.2', '1.3'].includes(result.schema_version))
   requireValue(result.analysis_id === expected.analysisId && object(result.input) && result.input.file_id === expected.fileId)
   requireValue(object(result.model) && result.model.id === expected.model.id && result.model.version === expected.model.version)
   requireValue(text(result.model.name) && result.model.modality === expected.model.modality && result.input.modality === expected.model.modality)
@@ -50,7 +51,7 @@ export function validateAnalysisResult(result, expected) {
   requireValue(result.artifacts.every(item => object(item) && text(item.id) && text(item.label) && text(item.media_type) &&
     Object.keys(item).every(key => ['id', 'label', 'media_type', 'file_id'].includes(key)) &&
     (item.file_id === undefined || text(item.file_id))))
-  if (['1.1', '1.2'].includes(result.schema_version)) {
+  if (['1.1', '1.2', '1.3'].includes(result.schema_version)) {
     requireValue(object(result.conclusion) && ['code', 'title', 'explanation'].every(key => text(result.conclusion[key])))
     requireValue(Array.isArray(result.metrics) && Array.isArray(result.limitations) && result.limitations.every(x => typeof x === 'string'))
     result.metrics.forEach(item => {
@@ -60,7 +61,13 @@ export function validateAnalysisResult(result, expected) {
     requireValue(new Set(result.metrics.map(item => item.key)).size === result.metrics.length)
     requireValue(Object.hasOwn(result, 'raw_output'))
   }
-  requireValue(result.status !== 'partial' || result.schema_version === '1.2')
+  requireValue(result.status !== 'partial' || ['1.2', '1.3'].includes(result.schema_version))
+  if (expected.model.result_schema_version === '1.3') requireValue(result.schema_version === '1.3')
+  if (result.schema_version === '1.3') {
+    requireValue(expected.model.report_schema && finiteJson(result))
+    const missing = validateReport(result.report, result.artifacts, expected.model.report_schema)
+    requireValue(result.status !== 'completed' || missing.length === 0)
+  }
   if (result.status === 'completed') requireValue(result.error === null)
   else requireValue(object(result.error) && text(result.error.code) && text(result.error.message) && (result.status !== 'failed' || result.parameters.length === 0))
   return result
@@ -68,8 +75,13 @@ export function validateAnalysisResult(result, expected) {
 
 export function failedAnalysisResult({ analysisId, fileId, model, startedAt }, code, message) {
   const finishedAt = new Date().toISOString()
+  let report
+  if (model.result_schema_version === '1.3') {
+    try { report = emptyReport(model.report_schema) } catch {}
+  }
   return {
-    schema_version: '1.2', analysis_id: analysisId, status: 'failed',
+    ...(report ? { report } : {}),
+    schema_version: report ? '1.3' : '1.2', analysis_id: analysisId, status: 'failed',
     model: { id: model.id, name: model.label, version: model.version, modality: model.modality, operation: model.operation },
     input: { file_id: fileId, modality: model.modality },
     execution: { started_at: startedAt, finished_at: finishedAt, duration_ms: Math.max(0, Date.parse(finishedAt) - Date.parse(startedAt)) },

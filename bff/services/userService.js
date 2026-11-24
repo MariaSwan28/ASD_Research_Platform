@@ -9,9 +9,10 @@ import { tokenService } from './tokenService.js'
 import fileService from './fileService.js'
 import { UserDto } from '../dtos/userDto.js'
 import { ApiError } from '../exceptions/apiError.js'
+import { normalizeFullName } from './fullName.js'
 
 class UserService {
-  async registration (email, password, date, gender) {
+  async registration (email, password, date, gender, fullName = '') {
     const candidate = await User.findOne({ where: { email } })
 
     if (candidate) {
@@ -24,6 +25,8 @@ class UserService {
     // await mailService.sendActivationMail(email, `http://c1r011v08.amm.vsu.ru/api/auth/activate/${activationLink}`)
     const user = new User({
       email,
+      role: 'parent',
+      fullName: normalizeFullName(fullName),
       password: hashPassword,
       date,
       gender,
@@ -57,7 +60,7 @@ class UserService {
 
   async activate (activationLink) {
     const user = await User.findOne({ where: { activationLink } })
-    if (!user) {
+    if (!user || user.deletedAt) {
       throw ApiError.BadRequest('Неккоректная ссылка активации')
     }
     user.isActivated = true
@@ -69,7 +72,7 @@ class UserService {
     // if (!user.isActivated) {
     //   throw ApiError.BadRequest(`Подтвердите почту`)
     // }
-    if (!user) {
+    if (!user || user.deletedAt) {
       throw ApiError.BadRequest(`Пользователь не существует`)
     }
     const isPassValid = await bcrypt.compare(password, user.password)
@@ -111,6 +114,7 @@ class UserService {
       throw ApiError.UnauthorizedError()
     }
     const user = await User.findOne({ where: { _id: userData.id } })
+    if (!user || user.deletedAt) throw ApiError.UnauthorizedError()
     const userDto = new UserDto(user)
     const tokens = tokenService.generateTokens({ ...userDto })
     const tokenModel = new Token({

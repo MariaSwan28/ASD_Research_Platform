@@ -6,7 +6,7 @@ const execute = promisify(execFile)
 
 export const videoController = {
   async getVideoMetadata(req, res) {
-    const file = await File.findOne({ where: { _id: req.params.fileId, user: req.user.id } })
+    const file = await File.findOne({ where: { _id: req.params.fileId, user: req.materialOwnerId } })
     if (!file) return res.status(404).json({ error: 'File not found' })
     try {
       const result = await execute('ffprobe', ['-v', 'error', '-show_entries', 'format=duration', '-of', 'json', fileService.getPath(file)], { timeout: 15000, maxBuffer: 32768 })

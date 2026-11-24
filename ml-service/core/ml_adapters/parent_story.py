@@ -4,6 +4,8 @@ Label meanings follow Lebedeva's thesis p.33. The sentence-wise pipeline follows
 """
 from core.text_adapter import analyze_text, text_model_status
 from core.result_contract import AdapterError, make_result, parameter
+from core.report_contract import text_block, table_block, file_block, metric_rows, METRIC_COLUMNS
+
 
 MODEL = {
     "id": "parent-story-nb",
@@ -13,7 +15,7 @@ MODEL = {
     "extensions": [".txt"],
     "operation": "text-classification",
     "label": "Анализ рассказа родителя",
-    "result_schema_version": "1.2",
+    "result_schema_version": "1.3",
 }
 
 LABELS = {
@@ -29,6 +31,14 @@ LABELS = {
     },
 }
 
+
+MODEL['report_schema'] = {'version':'1.0', 'blocks':[
+    {'id':'conclusion','type':'text','title':'Итог анализа','required':True},
+    {'id':'metrics','type':'table','title':'Основные показатели','required':True,'description':'Доля фрагментов категории «РАС» не является вероятностью РАС у ребёнка.','columns':METRIC_COLUMNS},
+    {'id':'sentences','type':'table','title':'Фрагменты рассказа','required':True,
+     'description':'Категории относятся к фрагментам текста, а не к диагнозу ребёнка.',
+     'columns':[{'key':'text','label':'Фрагмент'},{'key':'category','label':'Категория'}]}
+]}
 
 def status():
     state = text_model_status()
@@ -71,5 +81,8 @@ def analyze(payload):
                      (["Некоторые фрагменты не удалось оценить: в них нет слов из словаря модели."] if raw.get('sentences_skipped') else []),
         raw_output=raw,
         parameters=details,
+        report_blocks=[text_block('conclusion', conclusion['title']+'\n'+conclusion['explanation']),
+                       table_block('metrics', metric_rows(metrics)),
+                       table_block('sentences', [{'text':row['text'],'category':'Не оценён' if row['label'] is None else 'РАС' if row['label']==1 else 'Без РАС'} for row in raw.get('sentences',[])])],
         warnings=[],
     )

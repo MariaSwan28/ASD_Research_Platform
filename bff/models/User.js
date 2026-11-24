@@ -9,6 +9,14 @@ User.init({
         defaultValue: DataTypes.UUIDV4,
         primaryKey: true
     },
+    deletedAt: { type: DataTypes.DATE, allowNull: true, defaultValue: null },
+    fullName: { type: DataTypes.STRING(200), allowNull: false, defaultValue: '' },
+    role: {
+        type: DataTypes.STRING(20),
+        allowNull: false,
+        defaultValue: 'parent',
+        validate: { isIn: [['parent', 'specialist', 'admin']] }
+    },
     email: {
         type: DataTypes.STRING,
         allowNull: false,

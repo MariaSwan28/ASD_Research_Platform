@@ -1,0 +1,68 @@
+import { test } from 'node:test'
+import assert from 'node:assert/strict'
+import fs from 'node:fs/promises'
+import path from 'node:path'
+
+test('FIO migration and parent-only registration; specialists created by admin; names editable', async () => {
+ const temp=await fs.mkdtemp(path.resolve('.names-test-'))
+ Object.assign(process.env,{DB_PATH:path.join(temp,'db.sqlite'),FILE_PATH:path.join(temp,'files'),JWT_ACCESS_SECRET:'names-test-access-secret-1234567890',JWT_REFRESH_SECRET:'names-test-refresh-secret-1234567890'})
+ await fs.mkdir(process.env.FILE_PATH,{recursive:true})
+ const {default:express}=await import('express'),{default:jwt}=await import('jsonwebtoken')
+ const {default:db}=await import('../DB/database.js'),{default:User}=await import('../models/User.js'),{default:Child}=await import('../models/ChildProfile.js')
+ const {default:Links}=await import('../models/ChildSpecialist.js')
+ const {migrateNames}=await import('../services/nameMigration.js')
+ const {router:auth}=await import('../routes/auth.routes.js'),{router:admin}=await import('../routes/admin.routes.js'),{router:children}=await import('../routes/child.routes.js')
+ await db.sync()
+ const original=await User.create({email:'old@test.invalid',password:'old-hash',role:'parent'})
+ const legacy=await Child.create({ownerId:original._id,name:'Старый профиль',notes:'Existing notes'})
+ await db.query('PRAGMA foreign_keys = OFF')
+ await db.getQueryInterface().removeColumn('Users','fullName')
+ await db.getQueryInterface().removeColumn('ChildProfiles','fullName')
+ await db.query('PRAGMA foreign_keys = ON')
+ await migrateNames(db);await migrateNames(db)
+ await original.reload();await legacy.reload()
+ assert.equal(original.fullName,'');assert.equal(original.password,'old-hash');assert.equal(original.role,'parent')
+ assert.equal(legacy.fullName,'');assert.equal(legacy.name,'Старый профиль');assert.equal(legacy.notes,'Existing notes')
+ const administrator=await User.create({email:'admin@test.invalid',password:'unused',role:'admin'})
+ const token=u=>jwt.sign({id:u._id},process.env.JWT_ACCESS_SECRET)
+ const app=express();app.use(express.json());app.use('/api/auth',auth);app.use('/api/admin',admin);app.use('/api/children',children)
+ app.use((e,req,res,next)=>res.status(e.status||500).json({message:e.message}))
+ const server=app.listen(0,'127.0.0.1');await new Promise(r=>server.once('listening',r))
+ const base=`http://127.0.0.1:${server.address().port}`
+ const call=(url,user,method='GET',data)=>fetch(base+url,{method,headers:{'Content-Type':'application/json',...(user?{Authorization:'Bearer '+token(user)}:{})},body:data===undefined?undefined:JSON.stringify(data)})
+ const registration={fullName:'  Петрова   Анна Сергеевна ',email:'parent@test.invalid',password:'password123',date:'1990-01-01',gender:'female'}
+ try {
+  for (const role of ['admin','specialist']) assert.equal((await call('/api/auth/registration',null,'POST',{...registration,role})).status,403)
+  assert.equal((await call('/api/auth/registration',null,'POST',{...registration,fullName:''})).status,400)
+  let response=await call('/api/auth/registration',null,'POST',registration)
+  assert.equal(response.status,200);const registered=await response.json()
+  assert.equal(registered.user.role,'parent');assert.equal(registered.user.fullName,'Петрова Анна Сергеевна')
+  const parent=await User.findByPk(registered.user.id)
+  assert.equal((await call('/api/admin/users',parent,'POST',{fullName:'Специалист',email:'blocked@test.invalid',password:'password123',role:'specialist'})).status,403)
+  assert.equal((await call('/api/admin/users',administrator,'POST',{...registration,email:'forbidden@test.invalid',role:'parent'})).status,201)
+  assert.equal((await call('/api/admin/users',administrator,'POST',{email:'missing@test.invalid',password:'password123',role:'specialist'})).status,400)
+  response=await call('/api/admin/users',administrator,'POST',{fullName:' Иванов   Иван Иванович ',email:'spec@test.invalid',password:'password123',role:'specialist'})
+  assert.equal(response.status,201);const specialistData=await response.json();assert.equal(specialistData.fullName,'Иванов Иван Иванович')
+  const specialist=await User.findByPk(specialistData.id)
+  response=await call('/api/auth/profile',specialist,'PATCH',{fullName:'Сидоров Иван Иванович',role:'admin'})
+  assert.equal(response.status,200);const updated=await response.json();assert.equal(updated.fullName,'Сидоров Иван Иванович');assert.equal(updated.role,'specialist')
+  assert.equal((await call('/api/auth/profile',specialist,'PATCH',{fullName:' '.repeat(4)})).status,400)
+  assert.equal((await call(`/api/admin/users/${parent._id}/profile`,specialist,'PATCH',{fullName:'Hijack'})).status,403)
+  response=await call(`/api/admin/users/${original._id}/profile`,administrator,'PATCH',{fullName:'Петров Пётр Петрович'})
+  assert.equal(response.status,200);assert.equal((await response.json()).fullName,'Петров Пётр Петрович')
+  response=await call('/api/children',parent,'POST',{fullName:'Петров Михаил Сергеевич',birthDate:'2021-05-04',notes:'Parent-only notes'})
+  assert.equal(response.status,201);const child=await response.json();assert.equal(child.fullName,'Петров Михаил Сергеевич')
+  assert.equal((await call('/api/children',parent,'POST',{name:'No FIO'})).status,400)
+  assert.equal((await call(`/api/children/${child._id}`,parent,'PATCH',{fullName:'Петров Михаил Сергеевич',name:'Миша',notes:'Parent-only notes'})).status,200)
+  await call(`/api/admin/children/${child._id}/specialists`,administrator,'PUT',{specialistId:specialist._id})
+  const assigned=await (await call('/api/children',specialist)).json();assert.equal(assigned[0].fullName,'Петров Михаил Сергеевич');assert.equal(assigned[0].notes,'Parent-only notes')
+  const parents=await (await call('/api/children',parent)).json();assert.equal(parents[0].specialists[0].fullName,'Сидоров Иван Иванович')
+  const adminChildren=await (await call('/api/admin/children',administrator)).json();const shown=adminChildren.find(c=>c._id===child._id)
+  assert.equal(shown.ownerFullName,'Петрова Анна Сергеевна');assert.equal(shown.specialists[0].fullName,'Сидоров Иван Иванович')
+  response=await call('/api/auth/login',null,'POST',{email:parent.email,password:'password123'})
+  const login=await response.json();assert.equal(login.user.fullName,'Петрова Анна Сергеевна')
+  process.env.ALLOW_REGISTRATION='false'
+  assert.equal((await call('/api/auth/registration',null,'POST',{...registration,email:'closed@test.invalid'})).status,403)
+  delete process.env.ALLOW_REGISTRATION
+ } finally {await new Promise(r=>server.close(r));await db.close();await fs.rm(temp,{recursive:true,force:true})}
+})

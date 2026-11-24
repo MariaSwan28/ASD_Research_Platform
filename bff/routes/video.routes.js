@@ -1,17 +1,18 @@
+import { materialScope } from '../services/materialAccess.js'
 import UnifiedAnalysisResult from '../models/UnifiedAnalysisResult.js'
 import { resolveArtifact } from '../services/artifactService.js'
 import express from 'express'
 const router = express.Router()
+router.use(authMiddleware, requireRoles('parent', 'specialist'))
 import { videoController } from '../controllers/videoController.js'
 import { authMiddleware } from '../middleware/auth.middleware.js'
+import { requireRoles } from '../middleware/roles.middleware.js'
 import { File } from '../models/index.js'
 import fs from 'fs'
-import path from 'path'
-import { CONFIG } from '../config/config.js'
-router.get('/stream/:fileId/:userId', authMiddleware, async (req, res) => {
+router.get('/stream/:fileId/:userId', requireRoles('specialist'), materialScope, async (req, res) => {
   try {
     const { fileId, userId } = req.params
-    if (req.user.id !== userId) return res.status(403).json({ error: 'Access denied' })
+    if (req.user.role !== 'specialist' || req.materialOwnerId !== userId) return res.status(403).json({ error: 'Access denied' })
 
     const file = await File.findOne({
       where: { _id: fileId, user: userId }
@@ -21,14 +22,14 @@ router.get('/stream/:fileId/:userId', authMiddleware, async (req, res) => {
       return res.status(404).json({ error: 'File not found' })
     }
 
-    const videoBaseName = path.parse(file.name).name
     let savedArtifact = null
     const records = await UnifiedAnalysisResult.findAll({ where: { fileId, ownerId: userId }, order: [['createdAt', 'DESC']], limit: 40 })
     for (const record of records) {
       try { savedArtifact = await resolveArtifact(record, 'processed-video') } catch {}
       if (savedArtifact) break
     }
-    const videoPath = savedArtifact?.path || path.join(CONFIG.DATASET_DIR, userId, 'videos', `${videoBaseName}_analysis.mp4`)
+    if (!savedArtifact) return res.status(404).json({ error: 'Обработанное видео не найдено' })
+    const videoPath = savedArtifact.path
 
     console.log('videoPath:', videoPath)
     console.log('exists:', fs.existsSync(videoPath))
@@ -107,7 +108,6 @@ router.get('/stream/:fileId/:userId', authMiddleware, async (req, res) => {
 
 router.get(
   '/metadata/:fileId',
-  authMiddleware,
-  videoController.getVideoMetadata
+  materialScope, videoController.getVideoMetadata
 )
 export { router }

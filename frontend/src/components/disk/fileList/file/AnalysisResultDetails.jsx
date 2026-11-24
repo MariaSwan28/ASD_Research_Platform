@@ -1,4 +1,5 @@
 import AnalysisArtifact from './AnalysisArtifact';
+import AnalysisReport from './AnalysisReport';
 import React, { useState } from 'react';
 import './analysisResultDetails.css';
 
@@ -16,7 +17,7 @@ function Scalar({ value }) {
   if (value === null || value === undefined) return <>Нет данных</>;
   if (typeof value === 'boolean') return <>{value ? 'Да' : 'Нет'}</>;
   if (value === '') return <>Пустая строка</>;
-  if (typeof value === 'number') return <>{new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 3 }).format(value)}</>;
+  if (typeof value === 'number') return <>{new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 2 }).format(value)}</>;
   return <>{String(value)}</>;
 }
 
@@ -68,9 +69,11 @@ function Parameter({ item, compact = false }) {
 
 export default function AnalysisResultDetails({ result, modelId, version, date }) {
   if (!result || typeof result !== 'object') return null;
-  const canonical = ['1.0', '1.1', '1.2'].includes(result.schema_version);
+  const brief = result.report_view === 'brief';
+  const canonical = ['1.0', '1.1', '1.2', '1.3'].includes(result.schema_version);
   const model = canonical ? result.model : { id: modelId || result.model_id, version: version || result.model_version };
   const failed = result.status === 'failed';
+  const hasReport = result.schema_version === '1.3' && result.report;
   const conclusion = result.conclusion || {
     title: failed ? 'Анализ не выполнен' : 'Результат сохранён',
     explanation: failed ? result.error?.message || result.summary :
@@ -92,27 +95,29 @@ export default function AnalysisResultDetails({ result, modelId, version, date }
       {(result.execution?.finished_at || date) && <div><small>Дата анализа</small><strong>{new Date(result.execution?.finished_at || date).toLocaleString('ru-RU')}</strong></div>}
     </div>
     {result.status === 'partial' && <p className="analysis-partial">Получена часть результатов</p>}
-    <div className={`analysis-conclusion ${failed ? 'analysis-conclusion--failed' : ''}`}>
+    {(!hasReport || failed) && <div className={`analysis-conclusion ${failed ? 'analysis-conclusion--failed' : ''}`}>
       <h3>{conclusion.title}</h3><p role={failed ? 'alert' : undefined}>{conclusion.explanation}</p>
-    </div>
-    {metrics.length > 0 && <div className="analysis-metrics" aria-label="Основные показатели">
+    </div>}
+    {hasReport && <AnalysisReport report={result.report} artifacts={result.artifacts} analysisId={result.analysis_id} />}
+    {!hasReport && metrics.length > 0 && <div className="analysis-metrics" aria-label="Основные показатели">
       <h4>Основные показатели</h4>{metrics.map(item => <Parameter key={item.key} item={item} compact />)}
     </div>}
-    {(result.artifacts || []).filter(item => item.media_type?.startsWith('video/')).map(item => <AnalysisArtifact key={`${result.analysis_id}-${item.id}`} analysisId={result.analysis_id} artifact={item} />)}
+    {!hasReport && (result.artifacts || []).filter(item => item.media_type?.startsWith('video/')).map(item => <AnalysisArtifact key={`${result.analysis_id}-${item.id}`} analysisId={result.analysis_id} artifact={item} />)}
     <p className="analysis-result-disclaimer">Результат анализа не является диагнозом.</p>
-    <details className="analysis-detail-group"><summary>Подробности</summary>
+    {!brief && <><details className="analysis-detail-group"><summary>Подробности</summary>
       {canonical ? <>
         {(result.parameters || []).map(item => <Parameter key={item.key} item={item} />)}
         {!(result.parameters || []).length && <p>Показатели не получены.</p>}
-        {(result.artifacts || []).filter(item => !item.media_type?.startsWith('video/')).map(item => <AnalysisArtifact key={`${result.analysis_id}-${item.id}`} analysisId={result.analysis_id} artifact={item} />)}
+        {!hasReport && (result.artifacts || []).filter(item => !item.media_type?.startsWith('video/')).map(item => <AnalysisArtifact key={`${result.analysis_id}-${item.id}`} analysisId={result.analysis_id} artifact={item} />)}
       </> : Object.entries(result).map(([key, value]) => <div className="analysis-detail" key={key}><span>{title(key)}</span><RawValue value={value} /></div>)}
     </details>
     <details className="analysis-detail-group"><summary>Технические данные</summary>
+      {hasReport && <AnalysisReport report={result.report} artifacts={result.artifacts} analysisId={result.analysis_id} technical />}
       <p>Версия модели: {model?.version || '—'}. Версия формата: {result.schema_version || 'прежний формат'}.</p>
       {limitations.length > 0 && <details><summary>Ограничения анализа</summary><ul>{limitations.map((item, index) => <li key={index}>{item}</li>)}</ul></details>}
       {result.error?.code && <p>Код ошибки: {result.error.code}</p>}
       <button type="button" className="analysis-json-download" onClick={download}>Скачать JSON</button>
       <details><summary>Полный JSON</summary><pre className="analysis-result-json">{JSON.stringify(result, null, 2)}</pre></details>
-    </details>
+    </details></>}
   </section>;
 }

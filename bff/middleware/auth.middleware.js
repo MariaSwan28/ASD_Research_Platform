@@ -1,7 +1,8 @@
 import { ApiError } from '../exceptions/apiError.js'
 import { tokenService } from '../services/tokenService.js'
+import User from '../models/User.js'
 
-const authMiddleware = (req, res, next) => {
+const authMiddleware = async (req, res, next) => {
   try {
     const authorizationHeader = req.headers.authorization
     if (!authorizationHeader) {
@@ -18,7 +19,10 @@ const authMiddleware = (req, res, next) => {
       return next(ApiError.UnauthorizedError())
     }
 
-    req.user = userData
+    // Read current role from DB: grants/revocations apply to existing JWTs too.
+    const account = await User.findByPk(userData.id, { attributes: ['_id', 'email', 'role', 'deletedAt'] })
+    if (!account || account.deletedAt || !['parent', 'specialist', 'admin'].includes(account.role)) return next(ApiError.UnauthorizedError())
+    req.user = { id: account._id, email: account.email, role: account.role }
     next()
   } catch (e) {
     return next(ApiError.UnauthorizedError())

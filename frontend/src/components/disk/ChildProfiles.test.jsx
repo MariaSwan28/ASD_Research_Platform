@@ -1,0 +1,21 @@
+import React from 'react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import ChildProfiles from './ChildProfiles';
+import { loadChildren, createChild } from '../../actions/children';
+jest.mock('../../actions/children', () => ({ loadChildren: jest.fn(), createChild: jest.fn(), updateChild: jest.fn(), deleteChild: jest.fn() }));
+afterEach(() => jest.clearAllMocks());
+test('new child needs only FIO without redundant display name', async () => {
+  loadChildren.mockResolvedValue([]);
+  createChild.mockResolvedValue({ _id: 'child-1', name: 'Петров Михаил Сергеевич', fullName: 'Петров Михаил Сергеевич' });
+  const select = jest.fn();
+  render(<ChildProfiles selectedId={null} onSelect={select} />);
+  expect(document.querySelector('.child-selector__cards')).toBeTruthy();
+  expect(screen.queryByRole('table')).toBeNull();
+  expect(screen.queryByRole('button', {name:'Обновить'})).toBeNull();
+  fireEvent.click(screen.getByRole('button', { name: /Добавить ребёнка/ }));
+  expect(screen.queryByLabelText(/Имя в кабинете/)).toBeNull();
+  fireEvent.change(screen.getByLabelText('ФИО ребёнка'), { target: { value: 'Петров Михаил Сергеевич' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Сохранить', exact: true }));
+  await waitFor(() => expect(createChild).toHaveBeenCalledWith({ fullName: 'Петров Михаил Сергеевич', birthDate: null, notes: '' }));
+  await waitFor(() => expect(select).toHaveBeenCalledWith('child-1'));
+});

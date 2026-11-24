@@ -8,16 +8,19 @@ import { useDispatch, useSelector } from 'react-redux';
 import { auth } from '../actions/user';
 import Disk from './disk/Disk';
 import Profile from './profile/Profile';
+import AdminDashboard from './access/AdminDashboard';
+import SpecialistDashboard from './access/SpecialistDashboard';
 
 function App() {
   const isAuth = useSelector((state) => state.user.isAuth);
   const dispatch = useDispatch();
+  const role = useSelector(state => state.user.currentUser?.role || 'parent');
 
   useEffect(() => {
     if (localStorage.getItem('token')) {
       dispatch(auth());
     }
-  }, []);
+  }, [dispatch]);
   
    useEffect(() => {
     const handleBeforeUnload = (event) => {
@@ -50,7 +53,8 @@ function App() {
             </Switch>
           ) : (
             <Switch>
-              <Route exact path="/autmama/" component={Disk} />
+              <Route exact path="/autmama/" component={role === 'admin' ? AdminDashboard : role === 'specialist' ? SpecialistDashboard : Disk} />
+              <Route exact path="/autmama/materials" render={() => role !== 'parent' ? <Redirect to="/autmama/" /> : <Disk />} />
               <Route exact path="/autmama/profile" component={Profile} />
               <Route path="/autmama/privacy" render={() => <Redirect to="/autmama/privacy.html" />} />
               <Redirect to="/autmama/" />

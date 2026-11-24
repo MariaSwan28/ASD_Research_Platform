@@ -4,10 +4,10 @@ import { API_URL } from '../config'
 import { $api } from '../http'
 import { hideLoader, showLoader } from '../reducers/appReducer'
 
-export const registration = (email, password, date, gender) => {
+export const registration = (email, password, date, gender, fullName) => {
   return async dispatch => {
     try {
-      const reqData = { email, password, date, gender }
+      const reqData = { email, password, date, gender, fullName }
       dispatch(showLoader())
       const response = await $api.post(`api/auth/registration`, reqData)
       localStorage.setItem('token', response.data.accessToken)

@@ -9,6 +9,7 @@ import importlib
 import pkgutil
 import logging
 import re
+from core.report_contract import validate_schema
 from core import ml_adapters
 
 
@@ -38,8 +39,10 @@ def _adapters():
         for key in ("extensions", "input_types"):
             if not isinstance(definition.get(key), list) or not definition[key] or not all(isinstance(v, str) for v in definition[key]):
                 raise RuntimeError(f"Invalid {key} in {info.name}")
-        if definition.get("result_schema_version") not in ("1.0", "1.1", "1.2"):
+        if definition.get("result_schema_version") not in ("1.0", "1.1", "1.2", "1.3"):
             raise RuntimeError(f"Unsupported result schema in {info.name}")
+        if definition.get('result_schema_version') == '1.3':
+            validate_schema(definition.get('report_schema'))
         found[identifier] = adapter
     return found
 

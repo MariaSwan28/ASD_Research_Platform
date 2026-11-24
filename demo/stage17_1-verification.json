@@ -1,0 +1,16 @@
+{
+  "release": "17.1",
+  "base": "17",
+  "python": {
+    "total": 37,
+    "passed": 35,
+    "skipped_real_models": 2
+  },
+  "react": {
+    "passed": 34
+  },
+  "production_build": "passed with existing warnings",
+  "video_presentation_54_percent": "verified",
+  "model_weights_and_algorithms": "unchanged",
+  "docker_and_full_video": "not run"
+}

@@ -7,6 +7,7 @@ const DELETE_FILE = 'DELETE_FILE'
 const SET_VIEW = 'SET_VIEW'
 
 const defaultState = {
+    childProfileId: null,
     files: [],
     currentDir: null,
     popupDisplay: 'none',
@@ -16,9 +17,10 @@ const defaultState = {
 
 export default function fileReducer(state = defaultState, action) {
     switch (action.type) {
+        case 'SET_MATERIAL_SCOPE': return {...state, childProfileId: action.payload, files: [], currentDir: null, dirStack: []}
         case SET_FILES: return {...state, files: action.payload}
         case SET_CURRENT_DIR: return {...state, currentDir: action.payload}
-        case ADD_FILE: return {...state, files: [...state.files, action.payload]}
+        case ADD_FILE: return (action.payload.childProfileId || null) === state.childProfileId && (action.payload.parent || null) === state.currentDir ? {...state, files: [...state.files.filter(file => file._id !== action.payload._id), action.payload]} : state
         case SET_POPUP_DISPLAY: return {...state, popupDisplay: action.payload}
         case PUSH_TO_STACK: return {...state, dirStack: [...state.dirStack, action.payload]}
         case DELETE_FILE: return {...state, files: [...state.files.filter(file => file._id !== action.payload)]}
@@ -35,3 +37,4 @@ export const setPopupDisplay = (display) => ({type: SET_POPUP_DISPLAY, payload: 
 export const pushToStack = (dir) => ({type: PUSH_TO_STACK, payload: dir})
 export const deleteFileAction = (dirId) => ({type: DELETE_FILE, payload: dirId})
 export const setFileView = (payload) => ({type: SET_VIEW, payload})
+export const setMaterialScope = childId => ({type:'SET_MATERIAL_SCOPE', payload:childId});

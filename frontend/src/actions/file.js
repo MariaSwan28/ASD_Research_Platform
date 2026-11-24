@@ -10,7 +10,7 @@ import { API_URL } from '../config'
 import { deleteLink, setLinks, addLinkAction } from '../reducers/linksReducer'
 
 export function getFiles (dirId, sort, childProfileId = null) {
-  return async dispatch => {
+  return async (dispatch, getState) => {
     try {
       dispatch(showLoader())
       let url = `${API_URL}/api/files`
@@ -29,10 +29,11 @@ export function getFiles (dirId, sort, childProfileId = null) {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
       })
 
-      dispatch(setFiles(response.data))
+      if ((getState().files.childProfileId || null) === childProfileId && getState().files.currentDir === dirId) dispatch(setFiles(response.data))
     } catch (e) {
-      alert(e.response.data.message)
-      if (e.response.status === 401) {
+      if ((getState().files.childProfileId || null) === childProfileId && getState().files.currentDir === dirId) dispatch(setFiles([]))
+      alert(e?.response?.data?.message || 'Не удалось загрузить материалы')
+      if (e.response?.status === 401) {
         window.location.href = window.location.href + '/login'
       }
     } finally {

@@ -1,0 +1,18 @@
+{
+  "release": "stage16.3",
+  "base": "stage16.2",
+  "node_tests_passed": 10,
+  "react_tests_passed": 29,
+  "production_build": "passed with legacy lint warnings",
+  "header": "profile icon and logout only",
+  "admin_workspace": false,
+  "admin_material_and_analysis_api": "forbidden, including legacy own files",
+  "admin_create_child_api": "forbidden through parent and administrative routes",
+  "admin_existing_child_management": "retained",
+  "parent_workspace_and_child_creation": "retained",
+  "specialist_assigned_profile_read": "retained",
+  "database_schema": "unchanged from stage16.2",
+  "ml_sources": "unchanged",
+  "docker": "not run",
+  "browser_visual": "not run"
+}

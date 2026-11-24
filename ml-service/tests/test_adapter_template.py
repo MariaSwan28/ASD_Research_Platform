@@ -26,7 +26,7 @@ class TemplateTests(unittest.TestCase):
             result, status = run_model(adapter_template.MODEL['id'], {'file_id': 'file', 'analysis_id': 'run'})
         self.assertEqual(status, 200)
         self.assertEqual(result['raw_output'], raw)
-        self.assertEqual(result['schema_version'], '1.2')
+        self.assertEqual(result['schema_version'], '1.3')
         self.assertEqual(result['conclusion']['code'], 'interpretation_not_configured')
         with patch('core.adapter_runner.get_adapter', return_value=adapter_template):
             result, status = run_model(adapter_template.MODEL['id'], {})

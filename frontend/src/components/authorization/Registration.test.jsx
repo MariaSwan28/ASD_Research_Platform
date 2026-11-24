@@ -1,0 +1,22 @@
+import React from 'react';
+import { render, screen, fireEvent } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
+import Registration from './Registration';
+import { registration } from '../../actions/user';
+jest.mock('react-redux', () => ({ useDispatch: () => jest.fn(), useSelector: () => false }));
+jest.mock('../../actions/user', () => ({ registration: jest.fn() }));
+afterEach(() => jest.clearAllMocks());
+test('parent registration requires FIO and sends it without a role selector', () => {
+  render(<MemoryRouter><Registration /></MemoryRouter>);
+  expect(screen.getByRole('heading', { name: 'Регистрация родителя' })).toBeTruthy();
+  expect(screen.queryByLabelText('Роль')).toBeNull();
+  fireEvent.change(screen.getByLabelText('Электронная почта'), { target: { value: 'parent@test.invalid' } });
+  fireEvent.change(screen.getByLabelText('Пароль'), { target: { value: 'password123' } });
+  fireEvent.change(screen.getByLabelText('Дата рождения родителя'), { target: { value: '1990-01-01' } });
+  fireEvent.click(screen.getByRole('checkbox'));
+  fireEvent.submit(screen.getByRole('button', { name: 'Зарегистрироваться' }).closest('form'));
+  expect(registration).not.toHaveBeenCalled();
+  fireEvent.change(screen.getByLabelText('ФИО родителя'), { target: { value: '  Петрова Анна Сергеевна  ' } });
+  fireEvent.submit(screen.getByRole('button', { name: 'Зарегистрироваться' }).closest('form'));
+  expect(registration).toHaveBeenCalledWith('parent@test.invalid', 'password123', '1990-01-01', 'male', 'Петрова Анна Сергеевна');
+});

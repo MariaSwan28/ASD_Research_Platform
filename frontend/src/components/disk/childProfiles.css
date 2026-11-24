@@ -34,3 +34,24 @@
 .asd-modal{background:#fffefb}.asd-modal__close{background:#fff0e5;color:#976a5c}
 .asd-modal__form input,.asd-modal__form textarea{background:#fffdfa;border-color:#e9e5dc}
 .asd-modal__form input:focus,.asd-modal__form textarea:focus{outline-color:#b5dcc7}
+
+.child-selector__search{display:block;margin:16px 0;font-weight:600}.child-selector__search input{display:block;box-sizing:border-box;width:100%;max-width:600px;min-height:44px;margin-top:8px;padding:10px 12px;border:1px solid #cbd9d3;border-radius:10px;font:inherit}
+
+.child-selector__table-wrap{width:100%;overflow-x:auto;margin-top:16px}
+.child-selector__table{width:100%;min-width:640px;border-collapse:collapse;font-size:14px;color:#274654;text-align:left}
+.child-selector__table th{padding:13px 12px;background:#f7f9f7;border-bottom:1px solid #e1e8e3;color:#6b7d75;font-size:12px;font-weight:700}
+.child-selector__table td{padding:18px 12px;border-bottom:1px solid #e8ede9;vertical-align:middle;overflow-wrap:anywhere}
+.child-selector__table td:first-child{min-width:180px;max-width:380px}
+.child-selector__table tbody tr:last-child td{border-bottom:0}
+.child-selector__table tbody tr:hover{background:#fcfdfb}
+.child-selector__table tbody tr.is-active{background:#eaf5ef}
+.child-selector__date{white-space:nowrap}
+.child-selector__person{display:block;margin:5px 0;min-width:140px;max-width:300px}
+.child-selector__row-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-width:220px}
+.child-selector__row-actions button,.child-selector__general{border:1px solid #c5ded3;border-radius:9px;background:#edf7f2;color:#275c50;padding:9px 12px;cursor:pointer;font:inherit;font-weight:600}
+.child-selector__row-actions button{font-size:12px}
+.child-selector__row-actions button[aria-pressed="true"],.child-selector__general[aria-pressed="true"]{background:#dceee3;border-color:#91bba5}
+.child-selector__row-actions button:focus-visible,.child-selector__general:focus-visible{outline:3px solid #8773c6;outline-offset:3px}
+.child-selector__general{display:inline-flex;gap:12px;align-items:center;margin-bottom:4px}
+.child-selector__general span{font-size:12px;color:#778980;font-weight:400}
+@media(max-width:640px){.child-selector__table th,.child-selector__table td{padding:12px 10px}.child-selector__general{flex-wrap:wrap;gap:5px}}

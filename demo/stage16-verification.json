@@ -1,0 +1,21 @@
+{
+  "release": "stage16_roles_assignments",
+  "base": "stage15.2_complete_build_fix",
+  "checks": {
+    "node_test_cases": 7,
+    "react_test_cases": 17,
+    "production_build": "passed with existing lint warnings",
+    "role_migration_existing_data": "passed; additive migration and restart idempotency",
+    "real_bff_startup_and_bootstrap_admin": "passed",
+    "real_admin_creation_parent_and_specialist": "passed",
+    "real_parent_profile_creation_and_multipart_upload": "passed",
+    "real_assignment_and_persistence_after_bff_restart": "passed",
+    "specialist_api_scope": "assigned child name and birthDate only",
+    "revocation_and_role_change_existing_jwt": "passed",
+    "unassigned_profiles_materials_results_video": "denied to specialist",
+    "browser_visual_run": "not completed; Chromium blocked by execution environment socket restriction",
+    "docker_timeweb": "not run in this environment"
+  },
+  "ml_sources_and_artifacts": "unchanged",
+  "fixture_policy": "temporary local accounts only; no credentials or user data included in release"
+}

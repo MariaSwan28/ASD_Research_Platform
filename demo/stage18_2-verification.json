@@ -1,0 +1,13 @@
+{
+  "release": "18.2",
+  "base": "18.1",
+  "react_tests_passed": 37,
+  "production_build": "passed with lint warnings",
+  "changes": [
+    "parent child cards restored using original markup and styles",
+    "specialist table and search retained",
+    "no profile refresh button"
+  ],
+  "server_models_permissions": "unchanged",
+  "browser_visual": "not run"
+}

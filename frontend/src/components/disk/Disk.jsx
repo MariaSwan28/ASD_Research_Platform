@@ -6,6 +6,7 @@ import './disk.css';
 import Popup from './Popup';
 import {
   setCurrentDir,
+  setMaterialScope,
   //   setFileView,
   setPopupDisplay,
 } from '../../reducers/fileReducer';
@@ -24,6 +25,7 @@ import MLCapabilities from './MLCapabilities';
 
 const Disk = () => {
   const dispatch = useDispatch();
+  const isSpecialist = useSelector(state => state.user.currentUser.role) === 'specialist';
   const currentDir = useSelector((state) => state.files.currentDir);
   const loader = useSelector((state) => state.app.loader);
   const dirStack = useSelector((state) => state.files.dirStack);
@@ -37,13 +39,14 @@ const Disk = () => {
   const usedSpace = useSelector((state) => state.user.currentUser.usedSpace);
 
   const [files, setFiles] = useState(null);
-  const [writeFile, setWriteFile] = useState(null);
   const [openTagsModal, setOpenTagsModal] = useState(false);
   const [selectedChildId, setSelectedChildId] = useState(null);
 
+  useEffect(() => { dispatch(setMaterialScope(null)); }, [dispatch]);
+
   let isExistFreeSpace = null;
   const occupiedSpacePercent = (usedSpace / totalSpace) * 100;
-  if (occupiedSpacePercent >= 100) {
+  if (!isSpecialist && occupiedSpacePercent >= 100) {
     isExistFreeSpace = false;
   } else {
     isExistFreeSpace = true;
@@ -51,7 +54,7 @@ const Disk = () => {
 
   useEffect(() => {
     dispatch(auth());
-    dispatch(getFiles(currentDir, sort, selectedChildId));
+    if (!isSpecialist || selectedChildId) dispatch(getFiles(currentDir, sort, selectedChildId));
     if (isLinks) {
       dispatch(getLinks(links));
     }
@@ -76,19 +79,19 @@ const Disk = () => {
     dispatch(hideLinks());
   }
 
-  function fileUploadHandler(files, tags) {
+  async function fileUploadHandler(files, tags) {
     try {
       console.log(files);
       let currentUsedSpace = usedSpace;
       dispatch(auth());
-      files.forEach((file) => {
+      for (const file of files) {
         currentUsedSpace += file.size;
-        if (currentUsedSpace >= totalSpace) {
+        if (!isSpecialist && currentUsedSpace >= totalSpace) {
           setFiles(null);
           throw new Error('Не хватает памяти !');
         }
-        dispatch(uploadFile(file, currentDir, tags, selectedChildId));
-      });
+        await dispatch(uploadFile(file, currentDir, tags, selectedChildId));
+      }
       setFiles(null);
       dispatch(getFiles(currentDir, sort, selectedChildId));
       dispatch(auth());
@@ -98,7 +101,7 @@ const Disk = () => {
     }
   }
 
-  function createAndUploadTextFileHandler(name, content, tags) {
+  async function createAndUploadTextFileHandler(name, content, tags) {
     try {
       let currentUsedSpace = usedSpace;
       setIsTextForm(false);
@@ -106,12 +109,10 @@ const Disk = () => {
       const blob = new Blob([content], { type: 'text/plain' });
       const file = new File([blob], `${name}.txt`, { type: 'text/plain' });
       currentUsedSpace += file.size;
-      if (currentUsedSpace >= totalSpace) {
-        setWriteFile(null);
+      if (!isSpecialist && currentUsedSpace >= totalSpace) {
         throw new Error('Не хватает памяти !');
       }
-      dispatch(uploadFile(file, currentDir, tags, selectedChildId));
-      setWriteFile(null);
+      await dispatch(uploadFile(file, currentDir, tags, selectedChildId));
       dispatch(getFiles(currentDir, sort, selectedChildId));
       dispatch(auth());
     } catch (e) {
@@ -139,56 +140,38 @@ const Disk = () => {
     event.preventDefault();
     event.stopPropagation();
     let files = [...event.dataTransfer.files];
-    files.forEach((file) => dispatch(uploadFile(file, currentDir, [], selectedChildId)));
+    selectFiles(files);
     setDragEnter(false);
   }
 
-  const handleFileSelect = (event) => {
-    const selectedFiles = [...event.target.files];
-    if (selectedFiles) {
-      setFiles(selectedFiles);
-      setOpenTagsModal(true);
-    }
+  const isVideo = file => /\.(mp4|mov|webm)$/i.test(file.name);
+  const selectFiles = selectedFiles => {
+    if (isSpecialist && !selectedChildId) return;
+    const videoFiles = isSpecialist ? selectedFiles.filter(isVideo) : [];
+    const immediate = isSpecialist ? selectedFiles.filter(file => !isVideo(file)) : selectedFiles;
+    if (immediate.length) fileUploadHandler(immediate, []);
+    if (videoFiles.length) { setFiles(videoFiles); setOpenTagsModal(true); }
   };
-
+  const handleFileSelect = event => {
+    selectFiles([...event.target.files]);
+    event.target.value = '';
+  };
   const handleWriteFileSelect = (name, content) => {
-    if (name && content) {
-      setWriteFile({ name, content });
-      setOpenTagsModal(true);
-    }
+    if (name && content) createAndUploadTextFileHandler(name, content, []);
   };
-
-  const handleSaveTags = (selectedTags) => {
-    if (files && !writeFile) {
-      fileUploadHandler(files, selectedTags);
-    } else if (!files && writeFile) {
-      createAndUploadTextFileHandler(writeFile.name, writeFile.content, selectedTags);
-    }
+  const handleSaveTags = selectedTags => {
+    if (files?.length) fileUploadHandler(files, selectedTags);
     setOpenTagsModal(false);
-    console.log('Выбранные теги:', selectedTags);
+  };
+  const chooseChild = id => {
+    setSelectedChildId(id); setFiles(null); setOpenTagsModal(false);
+    dispatch(setMaterialScope(id));
   };
 
   const handleRefresh = () => {
     dispatch(auth());
     dispatch(getFiles(currentDir, sort, selectedChildId));
   };
-
-  if (loader) {
-    return (
-      <div className="loader">
-        <div className="lds-roller">
-          <div></div>
-          <div></div>
-          <div></div>
-          <div></div>
-          <div></div>
-          <div></div>
-          <div></div>
-          <div></div>
-        </div>
-      </div>
-    );
-  }
 
   return isLinks ? (
     <div className="disk">
@@ -224,12 +207,13 @@ const Disk = () => {
   ) : !dragEnter ? (
     <div className="disk" onDragEnter={dragEnterHandler} onDragLeave={dragLeaveHandler} onDragOver={dragEnterHandler}>
       <div className="disk__intro">
-        <span className="disk__eyebrow">ЛИЧНОЕ ПРОСТРАНСТВО</span>
-        <h1>Мои материалы</h1>
-        <p>Храните записи, видео, рисунки и документы в одном месте.</p>
+        <span className="disk__eyebrow">{isSpecialist ? 'КАБИНЕТ СПЕЦИАЛИСТА' : 'ЛИЧНОЕ ПРОСТРАНСТВО'}</span>
+        <h1>{isSpecialist ? 'Дети под наблюдением' : 'Мои материалы'}</h1>
+        <p>{isSpecialist ? 'Выберите ребёнка для работы с материалами и результатами.' : 'Храните записи, видео, рисунки и документы в одном месте.'}</p>
       </div>
-      {selectedChildId && <button type="button" className="disk__back-to-family" onClick={() => { setSelectedChildId(null); dispatch(setCurrentDir(null)); }} >← Ко всем профилям и общим материалам</button>}
-      <ChildProfiles selectedId={selectedChildId} onSelect={id => { setSelectedChildId(id); setFiles(null); setWriteFile(null); setOpenTagsModal(false); dispatch(setCurrentDir(null)); }} />
+      {selectedChildId && <button type="button" className="disk__back-to-family" onClick={() => chooseChild(null)} >← {isSpecialist ? 'К списку детей' : 'Ко всем профилям и общим материалам'}</button>}
+      <ChildProfiles selectedId={selectedChildId} onSelect={chooseChild} specialist={isSpecialist} />
+      {(!isSpecialist || selectedChildId) && <>
       <MLCapabilities />
       <div className="disk__toolbar"><div className="disk__btns">
         {/* <svg
@@ -272,10 +256,10 @@ const Disk = () => {
               </button>
               {isTextForm && <TextForm onClose={() => setIsTextForm(false)} onCreate={(name, content) => handleWriteFileSelect(name, content)} />}
             </div>
-            <TagsModal open={openTagsModal} onClose={() => setOpenTagsModal(false)} onSave={handleSaveTags} />
+            <TagsModal open={isSpecialist && openTagsModal} onClose={() => { setOpenTagsModal(false); setFiles(null); }} onSave={handleSaveTags} />
           </>
         )}
-          <ProgressBar totalSpace={totalSpace} usedSpace={usedSpace} />
+          {!isSpecialist && <ProgressBar totalSpace={totalSpace} usedSpace={usedSpace} />}
           
            <button className="disk__refresh-btn" onClick={handleRefresh} title="Обновить список файлов">
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24">
@@ -304,8 +288,9 @@ const Disk = () => {
             {['Видео','Аудио','Текст','Изображение','Документ','Таблица','Данные','Архив','Файл'].map(category => <option key={category} value={category}>{category}</option>)}
           </select>
         </div>
-        <FileList category={materialCategory} />
+        {loader ? <p role="status">Загрузка материалов…</p> : <FileList category={materialCategory} />}
       </section>
+      </>}
       <Popup />
       <Uploader />
     </div>

@@ -1,3 +1,4 @@
+import { accessibleFile } from '../services/materialAccess.js'
 import UnifiedAnalysisResult from '../models/UnifiedAnalysisResult.js'
 import AnalysisRecord from '../models/AnalysisRecord.js'
 import { File, Tag } from '../models/index.js'
@@ -11,7 +12,7 @@ import { mlService } from '../services/mlSerivce.js'
 class MLController {
   async getFeature (req, res) {
     try {
-      const userId = req.user.id
+      const userId = req.materialOwnerId
 
       const file = await File.findOne({
         where: { _id: req.query.id, user: userId }
@@ -28,9 +29,8 @@ class MLController {
       console.log(jsonFileName)
       const records = await UnifiedAnalysisResult.findAll({ where: { fileId: file._id, ownerId: userId }, order: [['createdAt', 'DESC']], limit: 40 })
       const saved = records.map(record => JSON.parse(record.resultJson)).find(result => result.model?.operation === 'movement-analysis' && result.raw_output?.video_metadata)
-      const path = fileService.getPathFeature(jsonFileName, userId)
-      if (!saved && !fs.existsSync(path)) return res.status(404).json({ success: false, message: 'Сохранённый результат не найден' })
-      const jsonData = saved?.raw_output || JSON.parse(fs.readFileSync(path, 'utf8'))
+      if (!saved) return res.status(404).json({ success: false, message: 'Сохранённый результат не найден' })
+      const jsonData = saved.raw_output
 
       // Извлекаем ID видео
       const videoId =
@@ -82,7 +82,7 @@ class MLController {
       const { fileId } = req.params
 
       const file = await File.findOne({
-        where: { _id: fileId, user: req.user.id }
+        where: { _id: fileId, user: req.materialOwnerId }
       })
 
       if (!file) {
@@ -102,7 +102,7 @@ class MLController {
       const videoPath = fileService.getPath(file)
 
       // Запускаем анализ (это может занять много времени!)
-      const result = await mlService.movment_analyze(req.user.id, videoPath)
+      const result = await mlService.movment_analyze(req.materialOwnerId, videoPath)
 
       if (!result || result.error) {
         return res.status(502).json({
@@ -114,7 +114,7 @@ class MLController {
       file.hasAnalysis = true
       await file.save()
       await AnalysisRecord.create({
-        ownerId: req.user.id, childProfileId: file.childProfileId || null,
+        ownerId: req.materialOwnerId, childProfileId: file.childProfileId || null,
         fileId: file._id, modelId: 'movement-video', status: 'completed'
       })
 
@@ -137,10 +137,9 @@ class MLController {
   async getStatus (req, res) {
     try {
       const status = await mlService.getStatus()
-      if (status.current_user && status.current_user !== req.user.id) {
-        return res.json({ is_analyzing: Boolean(status.is_analyzing), progress: 0, result: null })
-      }
-      res.json(status)
+      const file = status.current_file_id ? await accessibleFile(req.user, status.current_file_id) : null
+      res.json({ is_analyzing:Boolean(status.is_analyzing), progress:file ? status.progress : 0,
+        ...(file ? {current_file_id:file._id} : {}) })
     } catch (error) {
       res.status(500).json({ error: error.message })
     }

@@ -31,3 +31,7 @@ a{color:#4c709e}a:hover{color:#30598d}button:focus-visible,a:focus-visible,input
 .popup__create:hover,.text-form__button-create:hover,.video-download-btn:hover{background:#52786c!important}
 .analytics-modal .analytics-section{background:#fbf9f5;border-color:#ece7e0}
 @media(prefers-reduced-motion:reduce){*,*:before,*:after{scroll-behavior:auto!important;animation-duration:.01ms!important;transition-duration:.01ms!important}}
+
+/* Shared native controls: enough room for text as well as vertical padding. */
+select:not([multiple]) { height:auto; min-height:46px; line-height:1.4; padding:10px 36px 10px 12px; color:var(--ink); background-color:#fff; }
+input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="range"]):not([type="hidden"]) { min-height:44px; line-height:1.4; }

@@ -1,0 +1,23 @@
+import React from 'react';
+import { render, screen, fireEvent } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
+import Profile from './Profile';
+import { $api } from '../../http';
+const mockDispatch = jest.fn();
+const mockUser = { id: 'specialist', role: 'specialist', email: 'spec@test.invalid', fullName: '' };
+jest.mock('react-redux', () => ({ useDispatch: () => mockDispatch, useSelector: callback => callback({ user: { currentUser: mockUser } }) }));
+jest.mock('../../actions/user', () => ({ auth: () => ({ type: 'TEST_AUTH' }), deleteAvatar: jest.fn(), uploadAvatar: jest.fn() }));
+jest.mock('../../http', () => ({ $api: { patch: jest.fn() } }));
+afterEach(() => jest.clearAllMocks());
+test('existing specialist can fill missing FIO through own profile', async () => {
+  $api.patch.mockResolvedValue({ data: { ...mockUser, fullName: 'Иванов Иван Иванович' } });
+  render(<MemoryRouter><Profile /></MemoryRouter>);
+  expect(screen.getByRole('heading', { name: 'Профиль специалиста' })).toBeTruthy();
+  expect(screen.queryByRole('button', { name: 'Сохранить ФИО' })).toBeNull();
+  fireEvent.click(screen.getByRole('button', { name: 'Изменить' }));
+  fireEvent.change(screen.getByLabelText('ФИО'), { target: { value: 'Иванов Иван Иванович' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }));
+  await screen.findByRole('status');
+  expect($api.patch).toHaveBeenCalledWith('api/auth/profile', { fullName: 'Иванов Иван Иванович' });
+  expect(mockDispatch.mock.calls.some(([action]) => action.payload?.fullName === 'Иванов Иван Иванович')).toBe(true);
+});

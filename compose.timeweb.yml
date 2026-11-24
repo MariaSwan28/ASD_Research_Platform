@@ -43,7 +43,7 @@ services:
       ML_INTERNAL_TOKEN: ${ML_INTERNAL_TOKEN:?Run python scripts/setup_env.py}
       ALLOWED_ORIGINS: https://${SITE_HOST:?Set SITE_HOST to your domain}
       COOKIE_SECURE: 'true'
-      ALLOW_REGISTRATION: 'false'
+      ALLOW_REGISTRATION: ${ALLOW_REGISTRATION:-true}
       SUPERUSER_LOGIN: ${SUPERUSER_LOGIN:-}
       SUPREUSER_PASS: ${SUPREUSER_PASS:-}
       FILE_PATH: /app/files

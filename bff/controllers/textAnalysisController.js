@@ -1,3 +1,5 @@
+import { visibleResult } from '../services/reportVisibility.js'
+import { accessibleFile } from '../services/materialAccess.js'
 import { mlHeaders } from '../services/mlHeaders.js'
 import fetch from 'node-fetch'
 import fs from 'fs/promises'
@@ -15,7 +17,7 @@ export const textAnalysisController = {
     if (typeof fileId !== 'string' || !/^[0-9a-f-]{36}$/i.test(fileId)) {
       return res.status(400).json({ message: 'Укажите идентификатор текстового файла' })
     }
-    const file = await File.findOne({ where: { _id: fileId, user: req.user.id } })
+    const file = await File.findOne({ where: { _id: fileId, user: req.materialOwnerId } })
     if (!file) return res.status(404).json({ message: 'Файл не найден' })
     if (file.type === 'dir' || path.extname(file.name).toLowerCase() !== '.txt') {
       return res.status(400).json({ message: 'Для анализа требуется TXT-файл' })
@@ -50,14 +52,15 @@ export const textAnalysisController = {
         })
       }
       const saved = await TextAnalysisResult.create({
-        ownerId: req.user.id,
+        ownerId: req.materialOwnerId,
         childProfileId: file.childProfileId || null,
         fileId: file._id,
         modelId: result.model_id,
         modelVersion: result.model_version,
         resultJson: JSON.stringify(result)
       })
-      return res.json({ ...result, analysisId: saved.id, childProfileId: file.childProfileId || null, fileId: file._id })
+      if (!await accessibleFile(req.user, file._id)) return res.status(404).json({ message: 'Материал больше недоступен' })
+      return res.json(visibleResult({ ...result, analysisId: saved.id, childProfileId: file.childProfileId || null, fileId: file._id }, req.user))
     } catch (error) {
       console.error('Text analysis request failed:', error.message)
       return res.status(503).json({ message: 'Сервис текстового анализа недоступен' })
@@ -66,16 +69,16 @@ export const textAnalysisController = {
     }
   },
   async history (req, res) {
-    const file = await File.findOne({ where: { _id: req.params.fileId, user: req.user.id } })
+    const file = await File.findOne({ where: { _id: req.params.fileId, user: req.materialOwnerId } })
     if (!file) return res.status(404).json({ message: 'Файл не найден' })
     const records = await TextAnalysisResult.findAll({
-      where: { fileId: file._id, ownerId: req.user.id },
+      where: { fileId: file._id, ownerId: req.materialOwnerId },
       order: [['createdAt', 'DESC']], limit: 20
     })
     return res.json(records.map(record => ({
       id: record.id, date: record.createdAt,
       modelId: record.modelId, modelVersion: record.modelVersion,
-      result: JSON.parse(record.resultJson)
+      result: visibleResult(JSON.parse(record.resultJson), req.user)
     })))
   }
 }
